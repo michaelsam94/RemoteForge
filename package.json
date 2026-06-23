@@ -3,7 +3,7 @@
   "displayName": "RemoteForge VPS Delegator",
   "description": "Delegate local developer tasks to remote VPS targets from VS Code and Cursor.",
   "publisher": "MichaelSam94",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
@@ -30,6 +30,20 @@
       {
         "command": "remoteforge.refreshExplorer",
         "title": "RemoteForge: Refresh Explorer"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "remoteforge.openConfig",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorTextFocus || !editorTextFocus"
+      },
+      {
+        "command": "remoteforge.refreshExplorer",
+        "key": "ctrl+alt+shift+r",
+        "mac": "cmd+alt+shift+r",
+        "when": "editorTextFocus || !editorTextFocus"
       }
     ]
   },

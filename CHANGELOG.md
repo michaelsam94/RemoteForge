@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.6
+
+- Added usage instructions and keyboard shortcuts to the README.
+- Added default keybindings for opening RemoteForge configuration and refreshing RemoteForge.
+
 ## 0.0.5
 
 - Renamed the Marketplace display name to `RemoteForge VPS Delegator` because `RemoteForge` is already taken in the Marketplace.
