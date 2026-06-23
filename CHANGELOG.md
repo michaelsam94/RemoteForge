@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4
+
+- Renamed the Marketplace package from `remoteforge` to `remoteforge-vps` because `remoteforge` already exists in the Marketplace.
+
 ## 0.0.3
 
 - Added a Marketplace icon and README icon preview.

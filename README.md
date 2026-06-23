@@ -4,6 +4,8 @@
 
 RemoteForge delegates local developer workflows to VPS targets from VS Code and Cursor.
 
+Marketplace extension ID: `MichaelSam94.remoteforge-vps`
+
 ## Current Status
 
 This repository currently contains the foundation milestone:
