@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
+import { openConfigPanel } from './ui/webview/ConfigPanel';
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('remoteforge.openConfig', () => {
-      void vscode.window.showInformationMessage('RemoteForge configuration will open here.');
+      openConfigPanel(context);
     }),
     vscode.commands.registerCommand('remoteforge.refreshExplorer', () => undefined)
   );

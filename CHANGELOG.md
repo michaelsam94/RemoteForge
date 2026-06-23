@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.7
+
+- Made `RemoteForge: Open Configuration` open a real configuration webview instead of only showing a toast.
+
 ## 0.0.6
 
 - Added usage instructions and keyboard shortcuts to the README.
