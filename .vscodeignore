@@ -1,0 +1,10 @@
+.github/**
+src/**
+node_modules/**
+coverage/**
+docs/superpowers/**
+**/*.map
+.env*
+tsconfig*.json
+jest.config.cjs
+.eslintrc.cjs
