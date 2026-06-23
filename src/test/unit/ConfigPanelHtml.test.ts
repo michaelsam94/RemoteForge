@@ -6,6 +6,7 @@ describe('renderConfigPanelHtml', () => {
 
     expect(html).toContain('RemoteForge VPS Delegator');
     expect(html).toContain('Add VPS Profile');
+    expect(html).toContain('Run Script on VPS');
     expect(html).toContain('name="host"');
     expect(html).toContain('name="username"');
     expect(html).toContain('name="authMethod"');

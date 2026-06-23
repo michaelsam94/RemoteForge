@@ -1,3 +1,5 @@
+import { credentialsFromDraft, credentialsFromProfile } from '../ssh/SshCredentials';
+import { execRemoteCommand, RemoteExecResult } from '../ssh/SshExecutor';
 import { VpsProfile, VpsProfileDraft } from './ProfileTypes';
 
 export interface ConfigStore {
@@ -48,6 +50,10 @@ export class ProfileManager {
     private readonly now: () => string
   ) {}
 
+  async listProfiles(): Promise<VpsProfile[]> {
+    return this.config.getProfiles();
+  }
+
   async createProfile(draft: VpsProfileDraft): Promise<VpsProfile> {
     const existing = await this.config.getProfiles();
     const name = draft.name.trim();
@@ -79,6 +85,51 @@ export class ProfileManager {
     await this.config.saveProfiles([...existing, profile]);
 
     return profile;
+  }
+
+  async execOnDraft(draft: VpsProfileDraft, command: string, cwd?: string): Promise<RemoteExecResult> {
+    if (draft.authMethod === 'sshCommand') {
+      throw new Error('SSH command auth is not supported for delegated execution yet');
+    }
+
+    const connect = credentialsFromDraft(draft);
+    const workdir = cwd ?? draft.defaultWorkdir;
+    return execRemoteCommand(connect, command, workdir);
+  }
+
+  async execOnProfile(profileId: string, command: string, cwd?: string): Promise<RemoteExecResult> {
+    const profiles = await this.config.getProfiles();
+    const profile = profiles.find(entry => entry.id === profileId);
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    if (profile.authMethod === 'sshCommand') {
+      throw new Error('SSH command auth is not supported for delegated execution yet');
+    }
+
+    const secrets = await this.readSecrets(profile.id, profile.authMethod);
+    const connect = credentialsFromProfile(profile, secrets);
+    const workdir = cwd ?? profile.defaultWorkdir;
+    return execRemoteCommand(connect, command, workdir);
+  }
+
+  private async readSecrets(
+    profileId: string,
+    authMethod: VpsProfile['authMethod']
+  ): Promise<{ password?: string; privateKeyContent?: string; privateKeyPassphrase?: string }> {
+    if (authMethod === 'password') {
+      return { password: await this.secrets.get(`remoteforge.password.${profileId}`) };
+    }
+
+    if (authMethod === 'privateKey') {
+      return {
+        privateKeyContent: await this.secrets.get(`remoteforge.privateKeyContent.${profileId}`),
+        privateKeyPassphrase: await this.secrets.get(`remoteforge.privateKeyPassphrase.${profileId}`)
+      };
+    }
+
+    return {};
   }
 
   private async storeSecrets(profileId: string, draft: VpsProfileDraft): Promise<void> {

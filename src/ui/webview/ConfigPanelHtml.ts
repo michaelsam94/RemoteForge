@@ -99,7 +99,7 @@ export function renderConfigPanelHtml(nonce: string): string {
     <p>Configure VPS profiles, authentication details, default work directories, and quick-run scripts.</p>
 
     <div class="notice" id="status">
-      Fill in a VPS profile, then save it or test whether the host and port are reachable.
+      Fill in a VPS profile, then save it, test SSH authentication, or run a quick script on the VPS.
     </div>
 
     <form>
@@ -192,6 +192,7 @@ export function renderConfigPanelHtml(nonce: string): string {
       <div class="actions">
         <button type="button" data-action="save">Save Profile</button>
         <button class="secondary" type="button" data-action="test">Test Connection</button>
+        <button class="secondary" type="button" data-action="run">Run Script on VPS</button>
       </div>
     </form>
   </main>
@@ -243,6 +244,10 @@ export function renderConfigPanelHtml(nonce: string): string {
       vscode.postMessage({ type: 'testConnection', profile: profileFromForm() });
     });
 
+    document.querySelector('[data-action="run"]').addEventListener('click', () => {
+      vscode.postMessage({ type: 'runScript', profile: profileFromForm() });
+    });
+
     function updateAuthSections() {
       const authMethod = String(new FormData(form).get('authMethod') || 'password');
       document.querySelectorAll('[data-auth-section]').forEach((section) => {
@@ -257,6 +262,7 @@ export function renderConfigPanelHtml(nonce: string): string {
       const message = event.data;
       if (message && message.type === 'saveResult') setStatus(message.message, message.ok);
       if (message && message.type === 'testResult') setStatus(message.message, message.ok);
+      if (message && message.type === 'runResult') setStatus(message.message, message.ok);
     });
   </script>
 </body>

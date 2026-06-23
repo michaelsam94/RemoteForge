@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.10
+
+- Added SSH-backed connection testing that verifies authentication, not just TCP reachability.
+- Added remote command delegation through `ssh2` for saved profiles and config-panel quick scripts.
+- Added `RemoteForge: Run Command on VPS` command palette entry with output channel results.
+
 ## 0.0.9
 
 - Added password and private-key credential fields to the configuration panel.
