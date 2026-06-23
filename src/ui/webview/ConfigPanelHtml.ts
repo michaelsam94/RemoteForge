@@ -52,6 +52,9 @@ export function renderConfigPanelHtml(nonce: string): string {
       gap: 6px;
       font-weight: 600;
     }
+    [hidden] {
+      display: none !important;
+    }
     input, select, textarea {
       box-sizing: border-box;
       width: 100%;
@@ -134,6 +137,32 @@ export function renderConfigPanelHtml(nonce: string): string {
         </div>
       </fieldset>
 
+      <fieldset data-auth-section="password">
+        <legend>Password Credentials</legend>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="new-password" placeholder="Stored in VS Code SecretStorage">
+        </label>
+      </fieldset>
+
+      <fieldset data-auth-section="privateKey" hidden>
+        <legend>Private Key Credentials</legend>
+        <div class="grid">
+          <label>
+            Private key path
+            <input name="keyPath" type="text" placeholder="~/.ssh/id_ed25519">
+          </label>
+          <label>
+            Private key passphrase
+            <input name="privateKeyPassphrase" type="password" autocomplete="new-password" placeholder="Optional passphrase">
+          </label>
+        </div>
+        <label>
+          Paste private key content
+          <textarea name="privateKeyContent" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+        </label>
+      </fieldset>
+
       <fieldset>
         <legend>SSH Command</legend>
         <label>
@@ -191,6 +220,10 @@ export function renderConfigPanelHtml(nonce: string): string {
         port: Number(data.get('port') || 22),
         username: String(data.get('username') || '').trim(),
         authMethod: String(data.get('authMethod') || 'password'),
+        password: String(data.get('password') || '') || undefined,
+        keyPath: String(data.get('keyPath') || '').trim() || undefined,
+        privateKeyContent: String(data.get('privateKeyContent') || '') || undefined,
+        privateKeyPassphrase: String(data.get('privateKeyPassphrase') || '') || undefined,
         defaultWorkdir: String(data.get('defaultWorkdir') || '').trim() || undefined,
         sshCommand: String(data.get('sshCommand') || '').trim() || undefined,
         scripts
@@ -209,6 +242,16 @@ export function renderConfigPanelHtml(nonce: string): string {
     document.querySelector('[data-action="test"]').addEventListener('click', () => {
       vscode.postMessage({ type: 'testConnection', profile: profileFromForm() });
     });
+
+    function updateAuthSections() {
+      const authMethod = String(new FormData(form).get('authMethod') || 'password');
+      document.querySelectorAll('[data-auth-section]').forEach((section) => {
+        section.hidden = section.getAttribute('data-auth-section') !== authMethod;
+      });
+    }
+
+    form.elements.authMethod.addEventListener('change', updateAuthSections);
+    updateAuthSections();
 
     window.addEventListener('message', (event) => {
       const message = event.data;

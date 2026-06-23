@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.9
+
+- Added password and private-key credential fields to the configuration panel.
+- Included password, private key path, pasted key content, and passphrase values in saved profile payloads.
+
 ## 0.0.8
 
 - Wired the configuration panel Save Profile button to persist profile metadata and secrets.
