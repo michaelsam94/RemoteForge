@@ -15,7 +15,7 @@ class FakeClient extends EventEmitter {
     });
   }
 
-  connect(_config: unknown): void {
+  connect(): void {
     queueMicrotask(() => this.emit('ready'));
   }
 
