@@ -12,4 +12,14 @@ describe('renderConfigPanelHtml', () => {
     expect(html).toContain('Quick-Run Scripts');
     expect(html).toContain('nonce="nonce-123"');
   });
+
+  it('posts save and test connection actions to the extension host', () => {
+    const html = renderConfigPanelHtml('nonce-123');
+
+    expect(html).toContain("type: 'saveProfile'");
+    expect(html).toContain("type: 'testConnection'");
+    expect(html).toContain('data-action="save"');
+    expect(html).toContain('data-action="test"');
+    expect(html).toContain('id="status"');
+  });
 });

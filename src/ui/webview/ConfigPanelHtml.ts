@@ -95,8 +95,8 @@ export function renderConfigPanelHtml(nonce: string): string {
     <h1>RemoteForge VPS Delegator</h1>
     <p>Configure VPS profiles, authentication details, default work directories, and quick-run scripts.</p>
 
-    <div class="notice">
-      This first configuration panel is local-only. Saving profiles and testing SSH connections are planned for the next milestone.
+    <div class="notice" id="status">
+      Fill in a VPS profile, then save it or test whether the host and port are reachable.
     </div>
 
     <form>
@@ -161,17 +161,59 @@ export function renderConfigPanelHtml(nonce: string): string {
       </fieldset>
 
       <div class="actions">
-        <button type="button">Save Profile</button>
-        <button class="secondary" type="button">Test Connection</button>
+        <button type="button" data-action="save">Save Profile</button>
+        <button class="secondary" type="button" data-action="test">Test Connection</button>
       </div>
     </form>
   </main>
   <script nonce="${escapeAttribute(nonce)}">
     const vscode = acquireVsCodeApi();
-    document.querySelectorAll('button').forEach((button) => {
-      button.addEventListener('click', () => {
-        vscode.postMessage({ type: 'notice', text: 'Profile persistence is planned for the next milestone.' });
-      });
+    const form = document.querySelector('form');
+    const status = document.querySelector('#status');
+
+    function profileFromForm() {
+      const data = new FormData(form);
+      const scriptName = String(data.get('scriptName') || '').trim();
+      const scriptCommand = String(data.get('scriptCommand') || '').trim();
+      const scriptWorkdir = String(data.get('scriptWorkdir') || '').trim();
+      const scripts = scriptName && scriptCommand ? [{
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        name: scriptName,
+        command: scriptCommand,
+        workdir: scriptWorkdir || undefined,
+        showTerminal: true,
+        confirmBefore: false
+      }] : [];
+
+      return {
+        name: String(data.get('name') || '').trim(),
+        host: String(data.get('host') || '').trim(),
+        port: Number(data.get('port') || 22),
+        username: String(data.get('username') || '').trim(),
+        authMethod: String(data.get('authMethod') || 'password'),
+        defaultWorkdir: String(data.get('defaultWorkdir') || '').trim() || undefined,
+        sshCommand: String(data.get('sshCommand') || '').trim() || undefined,
+        scripts
+      };
+    }
+
+    function setStatus(message, ok) {
+      status.textContent = message;
+      status.style.borderLeftColor = ok ? 'var(--vscode-testing-iconPassed)' : 'var(--vscode-testing-iconFailed)';
+    }
+
+    document.querySelector('[data-action="save"]').addEventListener('click', () => {
+      vscode.postMessage({ type: 'saveProfile', profile: profileFromForm() });
+    });
+
+    document.querySelector('[data-action="test"]').addEventListener('click', () => {
+      vscode.postMessage({ type: 'testConnection', profile: profileFromForm() });
+    });
+
+    window.addEventListener('message', (event) => {
+      const message = event.data;
+      if (message && message.type === 'saveResult') setStatus(message.message, message.ok);
+      if (message && message.type === 'testResult') setStatus(message.message, message.ok);
     });
   </script>
 </body>

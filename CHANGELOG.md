@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.8
+
+- Wired the configuration panel Save Profile button to persist profile metadata and secrets.
+- Wired the Test Connection button to check TCP reachability for the configured host and port.
+
 ## 0.0.7
 
 - Made `RemoteForge: Open Configuration` open a real configuration webview instead of only showing a toast.
