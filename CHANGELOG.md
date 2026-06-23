@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.3
+
+- Added a Marketplace icon and README icon preview.
+
 ## 0.0.2
 
 - Fixed the VS Marketplace publisher ID to match `MichaelSam94`.
