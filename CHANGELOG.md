@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5
+
+- Renamed the Marketplace display name to `RemoteForge VPS Delegator` because `RemoteForge` is already taken in the Marketplace.
+
 ## 0.0.4
 
 - Renamed the Marketplace package from `remoteforge` to `remoteforge-vps` because `remoteforge` already exists in the Marketplace.

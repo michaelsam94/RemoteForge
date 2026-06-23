@@ -1,10 +1,12 @@
-# RemoteForge
+# RemoteForge VPS Delegator
 
 ![RemoteForge icon](media/icon.png)
 
-RemoteForge delegates local developer workflows to VPS targets from VS Code and Cursor.
+RemoteForge VPS Delegator delegates local developer workflows to VPS targets from VS Code and Cursor.
 
 Marketplace extension ID: `MichaelSam94.remoteforge-vps`
+
+Marketplace display name: `RemoteForge VPS Delegator`
 
 ## Current Status
 
@@ -29,7 +31,7 @@ npm run compile
 
 ## Security Direction
 
-RemoteForge is designed so profile secrets are stored through VS Code SecretStorage, never in workspace files or extension logs. The current core tests verify metadata/secret separation and log redaction.
+RemoteForge VPS Delegator is designed so profile secrets are stored through VS Code SecretStorage, never in workspace files or extension logs. The current core tests verify metadata/secret separation and log redaction.
 
 ## License
 

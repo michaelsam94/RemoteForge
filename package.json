@@ -1,9 +1,9 @@
 {
   "name": "remoteforge-vps",
-  "displayName": "RemoteForge",
+  "displayName": "RemoteForge VPS Delegator",
   "description": "Delegate local developer tasks to remote VPS targets from VS Code and Cursor.",
   "publisher": "MichaelSam94",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
