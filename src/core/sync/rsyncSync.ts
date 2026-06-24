@@ -104,7 +104,7 @@ export async function syncWorkspaceViaRsync(
   await ensureRemoteDirectory(config, remoteRoot);
 
   const auth = await prepareRsyncAuth(config);
-  const source = formatRsyncLocalPath(workspaceRoot, path.resolve);
+  const source = formatRsyncLocalPath(workspaceRoot, input => path.resolve(input));
   const destination = `${config.username}@${config.host}:${remoteRoot.replace(/\/+$/, '')}/`;
 
   try {
@@ -136,7 +136,7 @@ async function ensureRemoteDirectory(config: SshConnectConfig, remoteRoot: strin
 }
 
 async function prepareRsyncAuth(config: SshConnectConfig): Promise<RsyncAuthSetup> {
-  const cleanupTasks: Array<() => Promise<void>> = [];
+  const cleanupTasks: Array<() => void | Promise<void>> = [];
   const env: NodeJS.ProcessEnv = { ...process.env };
   const sshArgs = [
     '-p',
@@ -162,7 +162,7 @@ async function prepareRsyncAuth(config: SshConnectConfig): Promise<RsyncAuthSetu
   } else if (config.password) {
     if (!isWindowsPlatform() && await isCommandAvailable('sshpass')) {
       env.SSHPASS = config.password;
-      cleanupTasks.push(async () => {
+      cleanupTasks.push(() => {
         delete env.SSHPASS;
       });
 
@@ -274,12 +274,12 @@ function trimRsyncError(stderr: string): string {
 async function createAskPassHelper(
   secret: string,
   env: NodeJS.ProcessEnv,
-  cleanupTasks: Array<() => Promise<void>>
+  cleanupTasks: Array<() => void | Promise<void>>
 ): Promise<string> {
   if (isWindowsPlatform()) {
     const envVar = `REMOTEFORGE_ASKPASS_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     env[envVar] = secret;
-    cleanupTasks.push(async () => {
+    cleanupTasks.push(() => {
       delete env[envVar];
     });
 

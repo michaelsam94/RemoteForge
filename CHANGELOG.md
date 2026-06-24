@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.19
+
+- Fix ESLint errors that caused the GitHub Actions VSIX build to fail.
+
 ## 0.0.18
 
 - Skip rsync on Windows when it or OpenSSH is not installed, with a clear fallback message.
