@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.23
+
+- Add status bar delegate mode menu with enable, disable, sync, and terminal actions.
+- Add Toggle Delegate Mode and Delegate Mode Menu commands.
+- Confirm before disabling delegate mode and roll back state if activation fails after sync.
+
 ## 0.0.22
 
 - Skip workspace re-upload on delegate mode enable when all local files already exist on the VPS with matching sizes.

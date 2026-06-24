@@ -4,6 +4,78 @@ import { createNotificationProgressReporter } from '../core/sync/syncProgressRep
 import { ProfileManager } from '../core/profile/ProfileManager';
 import { getWorkspaceRoot, VpsWorkspaceService } from '../services/VpsWorkspaceService';
 
+export async function showDelegateModeMenu(
+  profileManager: ProfileManager,
+  workspaceService: VpsWorkspaceService
+): Promise<void> {
+  if (workspaceService.isEnabled()) {
+    const state = workspaceService.getState();
+    const selected = await vscode.window.showQuickPick(
+      [
+        { label: 'Sync workspace to VPS', description: 'Upload local changes', action: 'sync' as const },
+        { label: 'Open VPS terminal', description: 'RemoteForge SSH terminal', action: 'terminal' as const },
+        { label: 'Disable delegate mode', description: 'Return to local workspace', action: 'disable' as const },
+        { label: 'Open configuration', description: 'Profiles and delegate settings', action: 'config' as const }
+      ],
+      {
+        placeHolder: `Delegate mode ON — ${state?.profileName ?? 'VPS'}`
+      }
+    );
+
+    if (!selected) {
+      return;
+    }
+
+    switch (selected.action) {
+      case 'sync':
+        await syncWorkspaceToVps(workspaceService);
+        return;
+      case 'terminal':
+        workspaceService.openDelegateTerminal();
+        return;
+      case 'disable':
+        await disableVpsMode(workspaceService);
+        return;
+      case 'config':
+        await vscode.commands.executeCommand('remoteforge.openConfig');
+        return;
+    }
+
+    return;
+  }
+
+  const selected = await vscode.window.showQuickPick(
+    [
+      { label: 'Enable delegate mode', description: 'Migrate workspace and work on the VPS', action: 'enable' as const },
+      { label: 'Open configuration', description: 'Manage VPS profiles', action: 'config' as const }
+    ],
+    { placeHolder: 'RemoteForge delegate mode is off' }
+  );
+
+  if (!selected) {
+    return;
+  }
+
+  if (selected.action === 'enable') {
+    await enableVpsMode(profileManager, workspaceService);
+    return;
+  }
+
+  await vscode.commands.executeCommand('remoteforge.openConfig');
+}
+
+export async function toggleDelegateMode(
+  profileManager: ProfileManager,
+  workspaceService: VpsWorkspaceService
+): Promise<void> {
+  if (workspaceService.isEnabled()) {
+    await disableVpsMode(workspaceService);
+    return;
+  }
+
+  await enableVpsMode(profileManager, workspaceService);
+}
+
 export async function enableVpsMode(
   profileManager: ProfileManager,
   workspaceService: VpsWorkspaceService
@@ -74,6 +146,17 @@ export async function runDelegateActivation(
 export async function disableVpsMode(workspaceService: VpsWorkspaceService): Promise<void> {
   if (!workspaceService.isEnabled()) {
     await vscode.window.showInformationMessage('RemoteForge delegate mode is not enabled for this workspace.');
+    return;
+  }
+
+  const state = workspaceService.getState();
+  const confirmed = await vscode.window.showWarningMessage(
+    `Disable delegate mode for "${state?.profileName ?? 'VPS'}"? Local terminals and Cursor Agent commands will run locally again.`,
+    { modal: true },
+    'Disable Delegate Mode'
+  );
+
+  if (confirmed !== 'Disable Delegate Mode') {
     return;
   }
 

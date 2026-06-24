@@ -41,9 +41,17 @@ export class VpsWorkspaceService {
     onProgress?: SyncProgressHandler
   ): Promise<{ state: VpsWorkspaceState; sync: SyncResult }> {
     const result = await this.enable(profileId, remoteRoot, onProgress);
-    const connect = await this.profileManager.getConnectConfig(profileId);
-    await this.activateDelegateRuntime(result.state, connect);
-    return result;
+
+    try {
+      const connect = await this.profileManager.getConnectConfig(profileId);
+      await this.activateDelegateRuntime(result.state, connect);
+      return result;
+    } catch (error) {
+      await this.deactivateDelegateRuntime(result.state.localRoot);
+      await this.saveState(undefined);
+      await this.setDelegateContext(false);
+      throw error;
+    }
   }
 
   private async activateDelegateRuntime(state: VpsWorkspaceState, connect: SshConnectConfig): Promise<void> {
@@ -90,9 +98,14 @@ export class VpsWorkspaceService {
 
   async disableDelegateMode(): Promise<void> {
     const state = this.getState();
-    await this.deactivateDelegateRuntime(state?.localRoot);
-    await this.saveState(undefined);
-    await this.setDelegateContext(false);
+    const workspaceRoot = state?.localRoot ?? getWorkspaceRootOrUndefined();
+
+    try {
+      await this.deactivateDelegateRuntime(workspaceRoot);
+    } finally {
+      await this.saveState(undefined);
+      await this.setDelegateContext(false);
+    }
   }
 
   private async deactivateDelegateRuntime(workspaceRoot?: string): Promise<void> {
@@ -242,6 +255,10 @@ export function getWorkspaceRoot(): string {
   }
 
   return folder.uri.fsPath;
+}
+
+function getWorkspaceRootOrUndefined(): string | undefined {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
 function messageFromError(error: unknown): string {

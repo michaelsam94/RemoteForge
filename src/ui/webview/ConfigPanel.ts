@@ -2,7 +2,7 @@ import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import { ConfigStoreAdapter } from '../../adapters/ConfigStoreAdapter';
 import { SecretStoreAdapter } from '../../adapters/SecretStoreAdapter';
-import { runDelegateActivation } from '../../commands/vpsWorkspace';
+import { disableVpsMode, runDelegateActivation } from '../../commands/vpsWorkspace';
 import { testProfileConnection } from '../../core/connection/SshConnectionTester';
 import { ProfileManager } from '../../core/profile/ProfileManager';
 import { VpsProfile, VpsProfileDraft } from '../../core/profile/ProfileTypes';
@@ -154,7 +154,7 @@ async function handleConfigMessage(
     }
 
     try {
-      await workspaceService.disableDelegateMode();
+      await disableVpsMode(workspaceService);
       await sendDelegateState(panel, workspaceService);
       await panel.webview.postMessage({
         type: 'delegateResult',

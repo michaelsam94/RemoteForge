@@ -6,8 +6,10 @@ import { runRemoteCommand } from './commands/runRemoteCommand';
 import {
   disableVpsMode,
   enableVpsMode,
+  showDelegateModeMenu,
   syncWorkspaceFromVps,
-  syncWorkspaceToVps
+  syncWorkspaceToVps,
+  toggleDelegateMode
 } from './commands/vpsWorkspace';
 import { ProfileManager } from './core/profile/ProfileManager';
 import { DelegateTerminalManager, delegateTerminalProfileId } from './services/DelegateTerminalManager';
@@ -42,6 +44,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('remoteforge.runCommand', () => runRemoteCommand(profileManager, workspaceService)),
     vscode.commands.registerCommand('remoteforge.enableVpsMode', () => enableVpsMode(profileManager, workspaceService)),
     vscode.commands.registerCommand('remoteforge.disableVpsMode', () => disableVpsMode(workspaceService)),
+    vscode.commands.registerCommand('remoteforge.toggleDelegateMode', () => toggleDelegateMode(profileManager, workspaceService)),
+    vscode.commands.registerCommand('remoteforge.showDelegateMenu', () => showDelegateModeMenu(profileManager, workspaceService)),
     vscode.commands.registerCommand('remoteforge.syncToVps', () => syncWorkspaceToVps(workspaceService)),
     vscode.commands.registerCommand('remoteforge.syncFromVps', () => syncWorkspaceFromVps(workspaceService)),
     vscode.commands.registerCommand('remoteforge.openTerminal', () => {
