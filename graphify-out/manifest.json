@@ -1,0 +1,252 @@
+{
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/tsconfig.test.json": {
+    "mtime": 1782218944.342032,
+    "ast_hash": "2fbab59611621752d3d6c7f59018f757",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/package.json": {
+    "mtime": 1782287157.4471583,
+    "ast_hash": "a13e08a0966763568b4f653b1ded43c4",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/tsconfig.json": {
+    "mtime": 1782218690.6023488,
+    "ast_hash": "5007e7eaa3b0b4e311a9a11239ac3df3",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/extension.ts": {
+    "mtime": 1782283655.8865852,
+    "ast_hash": "ddf6259f85831cf91bdcdcf62683127d",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/ui/VpsStatusBar.ts": {
+    "mtime": 1782283618.3487859,
+    "ast_hash": "76211dfd8195606c6e44e8b9cc6bbb45",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/ui/webview/ConfigPanel.ts": {
+    "mtime": 1782283657.3969073,
+    "ast_hash": "9302bd2bf3b45d1d18078fce6edba3fe",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/ui/webview/ConfigPanelHtml.ts": {
+    "mtime": 1782283598.4959686,
+    "ast_hash": "7e894c2295538218349233c16118191b",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/connection/SshConnectionTester.ts": {
+    "mtime": 1782226565.7031848,
+    "ast_hash": "458d55264e46ec5119dfa30a62114eb4",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/connection/ConnectionTester.ts": {
+    "mtime": 1782224106.3447068,
+    "ast_hash": "c5e74d63822c8b725c5dbb5aca7335e6",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/workspace/VpsWorkspaceTypes.ts": {
+    "mtime": 1782281561.117061,
+    "ast_hash": "88c202fd8f34268da18b089a45f47be8",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/workspace/terminalProfileKeys.ts": {
+    "mtime": 1782283669.1789262,
+    "ast_hash": "76c6d8bfbd811a35d84a586fa015e660",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/ssh/SshCredentials.ts": {
+    "mtime": 1782226562.6656115,
+    "ast_hash": "06f0cf708e274ed4ba6f91d8e98f8941",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/ssh/SshExecutor.ts": {
+    "mtime": 1782283133.2170527,
+    "ast_hash": "74acd5dc41694927c9faa19f74d67774",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/ssh/parseSshCommand.ts": {
+    "mtime": 1782218814.321133,
+    "ast_hash": "5b41a01b6bc04f4f6c83e566197bf32a",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/profile/ProfileTypes.ts": {
+    "mtime": 1782218814.3216534,
+    "ast_hash": "957fb676f654f9c923cb9601558ed07d",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/profile/ProfileManager.ts": {
+    "mtime": 1782281901.011772,
+    "ast_hash": "c67790076586d57414a1bac925ef4e68",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/sftpOperations.ts": {
+    "mtime": 1782286620.7229543,
+    "ast_hash": "64ab7807a0a8cd92955ebcdf6c78bc1f",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/tarStreamSync.ts": {
+    "mtime": 1782287167.1400561,
+    "ast_hash": "709aca38403bf9a527d862a899b19111",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/rsyncSync.ts": {
+    "mtime": 1782287147.375415,
+    "ast_hash": "b73aeecc38414994fba15ae35d9dd36a",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/collectWorkspaceFiles.ts": {
+    "mtime": 1782284387.2051408,
+    "ast_hash": "4ff2ed2062c46a06a1d75c2d2826af4a",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/syncProgressReporting.ts": {
+    "mtime": 1782286618.565417,
+    "ast_hash": "4cb574d46f159a0086fe53e055a50980",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/WorkspaceSync.ts": {
+    "mtime": 1782287155.4016802,
+    "ast_hash": "79125829e22c465d1dc00e373da44a48",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/parallelSftpSync.ts": {
+    "mtime": 1782286617.9610295,
+    "ast_hash": "14b9de3e483630fcedb266341fd3938e",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/syncExcludes.ts": {
+    "mtime": 1782284400.7472122,
+    "ast_hash": "9cd2ea6e1633fef7ea46c2f9e64415e8",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/SshExecutor.test.ts": {
+    "mtime": 1782229694.5026886,
+    "ast_hash": "5b7add02cd58a1f2fd2bed2c4636ca5b",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/SshConnectionTester.test.ts": {
+    "mtime": 1782226593.8839657,
+    "ast_hash": "609189f84baeb32c62cc95114b990d54",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/ConfigPanelHtml.test.ts": {
+    "mtime": 1782283619.4583879,
+    "ast_hash": "2d14bcab4decaa8b49d016e28b08a704",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/ConnectionTester.test.ts": {
+    "mtime": 1782224051.1237514,
+    "ast_hash": "a041ac5bb466b13d641e62e3cbec8a8e",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/WorkspaceSync.test.ts": {
+    "mtime": 1782287174.8821044,
+    "ast_hash": "507d934292c595be754249ee57530fcb",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/DelegateTerminalManager.test.ts": {
+    "mtime": 1782283670.5119717,
+    "ast_hash": "29d39220256a97569f0b5ed35c88943e",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/ProfileManager.test.ts": {
+    "mtime": 1782281914.0646915,
+    "ast_hash": "aa57f1683b04b479779dafca2ff05034",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/parseSshCommand.test.ts": {
+    "mtime": 1782218756.718858,
+    "ast_hash": "8205af38c5a9a7771c1ccaa93cc1210c",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/test/unit/Logger.test.ts": {
+    "mtime": 1782218756.7201936,
+    "ast_hash": "97cb59bc2babf48be5d90ba87de33302",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/terminal/RemoteSshPseudoterminal.ts": {
+    "mtime": 1782283631.0880225,
+    "ast_hash": "067cc8e04678f81fc9e31737299d6e5b",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/shared/Logger.ts": {
+    "mtime": 1782218814.3222258,
+    "ast_hash": "68ed4f0e08add00c911485f8af1c1737",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/adapters/ConfigStoreAdapter.ts": {
+    "mtime": 1782224106.345385,
+    "ast_hash": "906b47417bb69db044dbc957ef1b782c",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/adapters/SecretStoreAdapter.ts": {
+    "mtime": 1782281901.4276848,
+    "ast_hash": "14247b11bad6156f8bd6f554a7a355fd",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/commands/vpsWorkspace.ts": {
+    "mtime": 1782283899.106739,
+    "ast_hash": "739d39e2dbb717504114e13a0f396cf8",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/commands/runRemoteCommand.ts": {
+    "mtime": 1782281580.6120183,
+    "ast_hash": "eb1755ae887a50ee2f069ca93a014a51",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/services/VpsWorkspaceService.ts": {
+    "mtime": 1782283927.0046551,
+    "ast_hash": "9ff840f4ca783425cadf02b46e98652b",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/services/DelegateTerminalManager.ts": {
+    "mtime": 1782283670.2895,
+    "ast_hash": "aff21b510d1b9287eb08348f67d567b7",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/CHANGELOG.md": {
+    "mtime": 1782287158.259059,
+    "ast_hash": "d263f4d5ecf2a73702dc4aeb89cd06dc",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/README.md": {
+    "mtime": 1782221120.1569517,
+    "ast_hash": "1fc0e8e26b9d75b62bbbe3ad63654218",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/docs/ROADMAP.md": {
+    "mtime": 1782218690.6009316,
+    "ast_hash": "67d89bdef001915703c11aaf48eb9221",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/docs/superpowers/plans/2026-06-23-remoteforge-foundation.md": {
+    "mtime": 1782219068.5379694,
+    "ast_hash": "417c535aac6173c1f10659bbbc0867e5",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/.github/workflows/release-vsix.yml": {
+    "mtime": 1782220044.467417,
+    "ast_hash": "b56f037b8c7a9dda94f1374a4106c024",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/media/icon.png": {
+    "mtime": 1782219774.8799925,
+    "ast_hash": "a181866d1e468a4b045c86fa70587d08",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/media/icon.svg": {
+    "mtime": 1782219796.1291087,
+    "ast_hash": "f99257dfed48c4f3a5ee94bbdb9b274f",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/media/sidebar-icon.svg": {
+    "mtime": 1782219796.1300035,
+    "ast_hash": "539b3cdda3a04bbbcb2ca62fbeb08f4e",
+    "semantic_hash": ""
+  },
+  "/Users/tadafuqinformationtechnology/Documents/RemoteForge/src/core/sync/syncPlatform.ts": {
+    "mtime": 1782287174.415272,
+    "ast_hash": "eed520d8eec8da0f1381b7187f13cd72",
+    "semantic_hash": ""
+  }
+}

@@ -44,6 +44,14 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('remoteforge.disableVpsMode', () => disableVpsMode(workspaceService)),
     vscode.commands.registerCommand('remoteforge.syncToVps', () => syncWorkspaceToVps(workspaceService)),
     vscode.commands.registerCommand('remoteforge.syncFromVps', () => syncWorkspaceFromVps(workspaceService)),
+    vscode.commands.registerCommand('remoteforge.openTerminal', () => {
+      if (!workspaceService.isEnabled()) {
+        void vscode.window.showWarningMessage('Enable RemoteForge delegate mode before opening the VPS terminal.');
+        return;
+      }
+
+      workspaceService.openDelegateTerminal();
+    }),
     vscode.window.registerTerminalProfileProvider(delegateTerminalProfileId, {
       provideTerminalProfile(): vscode.ProviderResult<vscode.TerminalProfile> {
         const state = workspaceService.getState();
@@ -61,13 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      if (terminal.name.startsWith('RemoteForge:')) {
-        return;
-      }
-
-      void vscode.window.showInformationMessage(
-        'Delegate mode is active. Open a new terminal to use the RemoteForge VPS shell, or run commands through RemoteForge.'
-      );
+      terminalManager.redirectForeignTerminal(terminal);
     }),
     createVpsStatusBar(workspaceService),
     vscode.workspace.onDidSaveTextDocument(document => {

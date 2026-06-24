@@ -8,12 +8,17 @@ import {
 } from '../core/sync/WorkspaceSync';
 import { SyncResult } from '../core/sync/sftpOperations';
 import { SyncProgressHandler, createStatusBarProgressReporter } from '../core/sync/syncProgressReporting';
+import { SshConnectConfig } from '../core/ssh/SshCredentials';
 import { VPS_WORKSPACE_STATE_KEY, VpsWorkspaceState } from '../core/workspace/VpsWorkspaceTypes';
+import { DelegateCursorHooks } from './DelegateCursorHooks';
+import { DelegateSshMultiplexer } from './DelegateSshMultiplexer';
 import { DelegateTerminalManager } from './DelegateTerminalManager';
 
 export class VpsWorkspaceService {
   private readonly changeEmitter = new vscode.EventEmitter<VpsWorkspaceState | undefined>();
   readonly onDidChange = this.changeEmitter.event;
+  private readonly sshMultiplexer = new DelegateSshMultiplexer();
+  private readonly cursorHooks = new DelegateCursorHooks();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -37,9 +42,22 @@ export class VpsWorkspaceService {
   ): Promise<VpsWorkspaceState> {
     const state = await this.enable(profileId, remoteRoot, onProgress);
     const connect = await this.profileManager.getConnectConfig(profileId);
+    await this.activateDelegateRuntime(state, connect);
+    return state;
+  }
+
+  private async activateDelegateRuntime(state: VpsWorkspaceState, connect: SshConnectConfig): Promise<void> {
+    try {
+      const hookConfig = await this.sshMultiplexer.start(connect, state.localRoot, state.remoteRoot);
+      await this.cursorHooks.install(state.localRoot, hookConfig);
+    } catch (error) {
+      void vscode.window.showWarningMessage(
+        `RemoteForge could not redirect Cursor Agent shell commands to the VPS (${messageFromError(error)}). Integrated terminal routing is still enabled.`
+      );
+    }
+
     await this.terminalManager.activate(this.context, state, connect);
     await this.setDelegateContext(true);
-    return state;
   }
 
   async enable(
@@ -70,9 +88,18 @@ export class VpsWorkspaceService {
   }
 
   async disableDelegateMode(): Promise<void> {
-    await this.terminalManager.deactivate(this.context);
+    const state = this.getState();
+    await this.deactivateDelegateRuntime(state?.localRoot);
     await this.saveState(undefined);
     await this.setDelegateContext(false);
+  }
+
+  private async deactivateDelegateRuntime(workspaceRoot?: string): Promise<void> {
+    await this.sshMultiplexer.stop();
+    if (workspaceRoot) {
+      await this.cursorHooks.uninstall(workspaceRoot);
+    }
+    await this.terminalManager.deactivate(this.context);
   }
 
   async restoreDelegateMode(): Promise<void> {
@@ -83,12 +110,16 @@ export class VpsWorkspaceService {
 
     try {
       const connect = await this.profileManager.getConnectConfig(state.profileId);
-      await this.terminalManager.activate(this.context, state, connect);
-      await this.setDelegateContext(true);
+      await this.activateDelegateRuntime(state, connect);
     } catch {
+      await this.deactivateDelegateRuntime(state.localRoot);
       await this.saveState(undefined);
       await this.setDelegateContext(false);
     }
+  }
+
+  openDelegateTerminal(): void {
+    this.terminalManager.openTerminal();
   }
 
   async syncToVps(state = this.requireState(), onProgress?: SyncProgressHandler): Promise<SyncResult> {
@@ -209,6 +240,10 @@ export function getWorkspaceRoot(): string {
   }
 
   return folder.uri.fsPath;
+}
+
+function messageFromError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function toWorkspaceRelativePath(workspaceRoot: string, filePath: string): string | undefined {

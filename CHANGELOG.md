@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.21
+
+- Redirect Cursor Agent shell commands to the VPS when delegate mode is enabled via Cursor preToolUse hooks and an SSH control socket.
+- Replace local integrated terminals with the RemoteForge VPS terminal while delegate mode is active.
+- Add `RemoteForge: Open VPS Terminal` command.
+
 ## 0.0.20
 
 - Fix migration appearing stuck at 0% by reporting progress during scanning and credential loading.

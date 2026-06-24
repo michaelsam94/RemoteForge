@@ -3,7 +3,7 @@
   "displayName": "RemoteForge VPS Delegator",
   "description": "Delegate local developer tasks to remote VPS targets from VS Code and Cursor.",
   "publisher": "MichaelSam94",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
@@ -46,6 +46,10 @@
       {
         "command": "remoteforge.syncToVps",
         "title": "RemoteForge: Sync Workspace to VPS"
+      },
+      {
+        "command": "remoteforge.openTerminal",
+        "title": "RemoteForge: Open VPS Terminal"
       },
       {
         "command": "remoteforge.syncFromVps",

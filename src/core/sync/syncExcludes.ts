@@ -37,7 +37,8 @@ export const DEFAULT_SYNC_EXCLUDES = [
   '*.vsix',
   '*.log',
   '.agentignore',
-  '.cursorignore'
+  '.cursorignore',
+  '.remoteforge'
 ];
 
 export function shouldExclude(relativePath: string, excludePatterns: string[]): boolean {
