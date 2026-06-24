@@ -91,8 +91,21 @@ export function renderConfigPanelHtml(nonce: string): string {
       padding: 10px 12px;
       background: var(--vscode-textBlockQuote-background);
     }
-    .saved-profiles {
+    .delegate-mode {
       margin-bottom: 24px;
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+    }
+    .delegate-status {
+      margin: 0 0 14px;
+      color: var(--vscode-descriptionForeground);
+      line-height: 1.5;
+    }
+    .delegate-status.active {
+      color: var(--vscode-testing-iconPassed);
+      font-weight: 600;
     }
     .profile-list {
       display: grid;
@@ -177,6 +190,29 @@ export function renderConfigPanelHtml(nonce: string): string {
     <div class="notice" id="status">
       Fill in a VPS profile, then save it, test SSH authentication, or run a quick script on the VPS.
     </div>
+
+    <section class="delegate-mode" aria-labelledby="delegate-mode-heading">
+      <h2 id="delegate-mode-heading">VPS Delegate Mode</h2>
+      <p class="delegate-status" id="delegate-status">
+        When enabled, this workspace is migrated to the VPS. Terminals and RemoteForge commands run on the remote copy.
+      </p>
+      <div class="grid">
+        <label>
+          VPS profile
+          <select id="delegate-profile" disabled>
+            <option value="">Loading profiles...</option>
+          </select>
+        </label>
+        <label>
+          Remote workspace path
+          <input id="delegate-remote-root" type="text" placeholder="/root/RemoteForge" disabled>
+        </label>
+      </div>
+      <div class="actions" style="margin-top: 14px;">
+        <button type="button" id="delegate-enable" data-action="enable-delegate" disabled>Enable Delegate Mode</button>
+        <button class="secondary" type="button" id="delegate-disable" data-action="disable-delegate" hidden>Disable Delegate Mode</button>
+      </div>
+    </section>
 
     <section class="saved-profiles" aria-labelledby="saved-profiles-heading">
       <h2 id="saved-profiles-heading">Saved Profiles</h2>
@@ -284,6 +320,12 @@ export function renderConfigPanelHtml(nonce: string): string {
     const status = document.querySelector('#status');
     const savedProfilesEmpty = document.querySelector('#saved-profiles-empty');
     const savedProfilesList = document.querySelector('#saved-profiles-list');
+    const delegateStatus = document.querySelector('#delegate-status');
+    const delegateProfile = document.querySelector('#delegate-profile');
+    const delegateRemoteRoot = document.querySelector('#delegate-remote-root');
+    const delegateEnable = document.querySelector('#delegate-enable');
+    const delegateDisable = document.querySelector('#delegate-disable');
+    let loadedProfiles = [];
 
     const authMethodLabels = {
       password: 'Password',
@@ -300,6 +342,8 @@ export function renderConfigPanelHtml(nonce: string): string {
     }
 
     function renderSavedProfiles(profiles) {
+      loadedProfiles = profiles;
+      renderDelegateControls(profiles);
       if (!profiles.length) {
         savedProfilesEmpty.textContent = 'No saved profiles yet. Add one below.';
         savedProfilesEmpty.hidden = false;
@@ -348,6 +392,77 @@ export function renderConfigPanelHtml(nonce: string): string {
         \`;
       }).join('');
     }
+
+    function renderDelegateControls(profiles) {
+      delegateProfile.innerHTML = profiles.length
+        ? profiles.map((profile) => \`<option value="\${escapeHtml(profile.id)}">\${escapeHtml(profile.name)}</option>\`).join('')
+        : '<option value="">No saved profiles</option>';
+
+      const selected = profiles.find((profile) => profile.id === delegateProfile.value) || profiles[0];
+      if (selected) {
+        delegateProfile.value = selected.id;
+        delegateRemoteRoot.value = selected.suggestedRemoteRoot || selected.defaultWorkdir || '';
+      }
+
+      delegateProfile.disabled = !profiles.length;
+      delegateRemoteRoot.disabled = !profiles.length;
+    }
+
+    function renderDelegateState(payload) {
+      const delegate = payload.delegate || { enabled: false };
+      const hasWorkspace = payload.hasWorkspace !== false;
+
+      if (!hasWorkspace) {
+        delegateStatus.textContent = 'Open a workspace folder to enable delegate mode.';
+        delegateEnable.disabled = true;
+        delegateDisable.hidden = true;
+        return;
+      }
+
+      if (delegate.enabled) {
+        delegateStatus.textContent = \`Delegate mode is ON for "\${delegate.profileName}" at \${delegate.remoteRoot}.\`;
+        delegateStatus.classList.add('active');
+        delegateEnable.hidden = true;
+        delegateDisable.hidden = false;
+        delegateProfile.disabled = true;
+        delegateRemoteRoot.disabled = true;
+        if (delegate.profileId) delegateProfile.value = delegate.profileId;
+        if (delegate.remoteRoot) delegateRemoteRoot.value = delegate.remoteRoot;
+        return;
+      }
+
+      delegateStatus.textContent = 'When enabled, this workspace is migrated to the VPS. Integrated terminals and RemoteForge commands run remotely.';
+      delegateStatus.classList.remove('active');
+      delegateEnable.hidden = false;
+      delegateDisable.hidden = true;
+      delegateEnable.disabled = !loadedProfiles.length;
+      delegateProfile.disabled = !loadedProfiles.length;
+      delegateRemoteRoot.disabled = !loadedProfiles.length;
+    }
+
+    delegateProfile.addEventListener('change', () => {
+      const selected = loadedProfiles.find((profile) => profile.id === delegateProfile.value);
+      if (selected) {
+        delegateRemoteRoot.value = selected.suggestedRemoteRoot || selected.defaultWorkdir || '';
+      }
+    });
+
+    delegateEnable.addEventListener('click', () => {
+      if (!delegateProfile.value || !delegateRemoteRoot.value.trim()) {
+        setStatus('Select a VPS profile and remote path before enabling delegate mode.', false);
+        return;
+      }
+
+      vscode.postMessage({
+        type: 'enableDelegateMode',
+        profileId: delegateProfile.value,
+        remoteRoot: delegateRemoteRoot.value.trim()
+      });
+    });
+
+    delegateDisable.addEventListener('click', () => {
+      vscode.postMessage({ type: 'disableDelegateMode' });
+    });
 
     savedProfilesList.addEventListener('click', (event) => {
       const target = event.target;
@@ -440,13 +555,16 @@ export function renderConfigPanelHtml(nonce: string): string {
     window.addEventListener('message', (event) => {
       const message = event.data;
       if (message && message.type === 'profilesLoaded') renderSavedProfiles(message.profiles || []);
+      if (message && message.type === 'delegateState') renderDelegateState(message);
       if (message && message.type === 'saveResult') setStatus(message.message, message.ok);
       if (message && message.type === 'testResult') setStatus(message.message, message.ok);
       if (message && message.type === 'runResult') setStatus(message.message, message.ok);
       if (message && message.type === 'deleteResult') setStatus(message.message, message.ok);
+      if (message && message.type === 'delegateResult') setStatus(message.message, message.ok);
     });
 
     vscode.postMessage({ type: 'requestProfiles' });
+    vscode.postMessage({ type: 'requestDelegateState' });
   </script>
 </body>
 </html>`;

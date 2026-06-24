@@ -8,6 +8,35 @@ export interface SyncProgress {
   file: string;
 }
 
+export function syncProgressPercent(progress: SyncProgress): number {
+  if (progress.total <= 0) {
+    return progress.current > 0 ? 100 : 0;
+  }
+
+  return Math.min(100, Math.round((progress.current / progress.total) * 100));
+}
+
+export function syncProgressIncrement(progress: SyncProgress): number {
+  if (progress.total <= 0) {
+    return 100;
+  }
+
+  return 100 / progress.total;
+}
+
+export function formatSyncProgressMessage(progress: SyncProgress): string {
+  const percent = syncProgressPercent(progress);
+  if (progress.total === 100) {
+    return `${percent}% — ${progress.file}`;
+  }
+
+  if (progress.total <= 0) {
+    return `${percent}% — ${progress.file}`;
+  }
+
+  return `${percent}% — ${progress.file} (${progress.current}/${progress.total})`;
+}
+
 export interface SyncResult {
   uploaded: number;
   downloaded: number;
@@ -46,10 +75,11 @@ async function mkdirIfMissing(sftp: SFTPWrapper, remoteDirectory: string): Promi
 export async function uploadFile(
   sftp: SFTPWrapper,
   localPath: string,
-  remotePath: string
+  remotePath: string,
+  options: { skipMkdir?: boolean } = {}
 ): Promise<void> {
   const remoteDirectory = remotePath.slice(0, remotePath.lastIndexOf('/'));
-  if (remoteDirectory) {
+  if (remoteDirectory && !options.skipMkdir) {
     await ensureRemoteDirectory(sftp, remoteDirectory);
   }
 

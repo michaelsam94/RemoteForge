@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.0.18
+
+- Skip rsync on Windows when it or OpenSSH is not installed, with a clear fallback message.
+- Use Windows-compatible SSH askpass helpers, path formatting, and null-device paths when rsync is available.
+- Skip tar on Windows when unavailable and fall back directly to parallel SFTP upload.
+
+## 0.0.17
+
+- Use rsync as the primary workspace migration path for faster incremental sync and better progress reporting.
+- Fall back to tar archive upload and parallel SFTP when rsync is unavailable or fails.
+
+## 0.0.16
+
+- Fix migration stalls by uploading a single archive with SFTP fastPut instead of streaming into SSH exec stdin.
+- Use fast gzip compression, 512 KB chunks, and 64-way SFTP concurrency for archive upload.
+
+## 0.0.15
+
+- Speed up workspace migration by streaming a compressed tar archive over SSH instead of uploading files one-by-one.
+- Skip Cursor, agent, cache, and build artifact directories during migration.
+- Fall back to parallel SFTP uploads when archive streaming is unavailable.
+
+## 0.0.14
+
+- Show percentage progress during workspace migration and VPS sync operations in the notification UI.
+
+## 0.0.13
+
+- Add VPS Delegate Mode section to the configuration panel for migrating the current workspace to a VPS.
+- Open an SSH-backed integrated terminal on the VPS and set it as the default terminal profile while delegate mode is on.
+- Auto-sync saved and newly created files to the remote workspace during delegate mode.
+- Route RemoteForge command execution through the remote workspace when delegate mode is enabled.
+
 ## 0.0.12
 
 - Add VPS workspace mode to clone the local repo to a VPS and work remotely.

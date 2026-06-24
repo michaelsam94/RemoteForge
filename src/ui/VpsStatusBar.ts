@@ -16,12 +16,12 @@ function updateVpsStatusBar(
 ): void {
   if (!state?.enabled) {
     statusBarItem.text = '$(cloud-upload) RemoteForge: Local';
-    statusBarItem.tooltip = 'RemoteForge VPS mode is off. Run "Enable VPS Mode" to clone this workspace to a VPS.';
-    statusBarItem.command = 'remoteforge.enableVpsMode';
+    statusBarItem.tooltip = 'Delegate mode is off. Open configuration or run "Enable Delegate Mode".';
+    statusBarItem.command = 'remoteforge.openConfig';
     return;
   }
 
   statusBarItem.text = `$(server) RemoteForge: ${state.profileName}`;
-  statusBarItem.tooltip = `Working on VPS at ${state.remoteRoot}\nClick to sync local changes to the VPS.`;
+  statusBarItem.tooltip = `Delegate mode ON at ${state.remoteRoot}\nTerminals and commands run on the VPS. Click to sync local changes.`;
   statusBarItem.command = 'remoteforge.syncToVps';
 }

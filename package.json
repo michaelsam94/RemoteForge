@@ -3,7 +3,7 @@
   "displayName": "RemoteForge VPS Delegator",
   "description": "Delegate local developer tasks to remote VPS targets from VS Code and Cursor.",
   "publisher": "MichaelSam94",
-  "version": "0.0.12",
+  "version": "0.0.18",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
@@ -37,11 +37,11 @@
       },
       {
         "command": "remoteforge.enableVpsMode",
-        "title": "RemoteForge: Enable VPS Mode"
+        "title": "RemoteForge: Enable Delegate Mode"
       },
       {
         "command": "remoteforge.disableVpsMode",
-        "title": "RemoteForge: Disable VPS Mode"
+        "title": "RemoteForge: Disable Delegate Mode"
       },
       {
         "command": "remoteforge.syncToVps",
@@ -52,6 +52,15 @@
         "title": "RemoteForge: Sync Workspace from VPS"
       }
     ],
+    "terminal": {
+      "profiles": [
+        {
+          "id": "remoteforge.delegate",
+          "title": "RemoteForge VPS",
+          "icon": "server"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "remoteforge.openConfig",

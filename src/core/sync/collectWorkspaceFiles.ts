@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseGitignoreContents, shouldExclude } from './syncExcludes';
+import { isExcludedDirectory, parseGitignoreContents, shouldExclude } from './syncExcludes';
 
 export interface WorkspaceFileEntry {
   relativePath: string;
   absolutePath: string;
+  size: number;
 }
 
 export interface CollectWorkspaceFilesOptions {
@@ -20,6 +21,10 @@ export function collectWorkspaceFiles(
   return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
+export function sumWorkspaceFileBytes(files: WorkspaceFileEntry[]): number {
+  return files.reduce((total, file) => total + file.size, 0);
+}
+
 function walkDirectory(
   workspaceRoot: string,
   currentDirectory: string,
@@ -30,17 +35,25 @@ function walkDirectory(
     const absolutePath = path.join(currentDirectory, entry.name);
     const relativePath = path.relative(workspaceRoot, absolutePath).replace(/\\/g, '/');
 
-    if (shouldExclude(relativePath, excludePatterns)) {
-      continue;
-    }
-
     if (entry.isDirectory()) {
+      if (isExcludedDirectory(relativePath, excludePatterns)) {
+        continue;
+      }
+
       walkDirectory(workspaceRoot, absolutePath, excludePatterns, files);
       continue;
     }
 
     if (entry.isFile()) {
-      files.push({ relativePath, absolutePath });
+      if (shouldExclude(relativePath, excludePatterns)) {
+        continue;
+      }
+
+      files.push({
+        relativePath,
+        absolutePath,
+        size: fs.statSync(absolutePath).size
+      });
     }
   }
 }

@@ -1,20 +1,67 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DEFAULT_SYNC_EXCLUDES, parseGitignoreContents, shouldExclude } from '../../core/sync/syncExcludes';
+import { formatRsyncLocalPath, nullDevicePath } from '../../core/sync/syncPlatform';
+import { buildRsyncExcludeArgs, parseRsyncProgressPercent } from '../../core/sync/rsyncSync';
+import { DEFAULT_SYNC_EXCLUDES, buildTarExcludeArgs, parseGitignoreContents, shouldExclude } from '../../core/sync/syncExcludes';
 import { collectWorkspaceFiles } from '../../core/sync/collectWorkspaceFiles';
-import { remoteWorkspacePath } from '../../core/sync/sftpOperations';
+import {
+  formatSyncProgressMessage,
+  remoteWorkspacePath,
+  syncProgressIncrement,
+  syncProgressPercent
+} from '../../core/sync/sftpOperations';
 
 describe('syncExcludes', () => {
   it('excludes directories and glob patterns', () => {
     expect(shouldExclude('node_modules/react/index.js', DEFAULT_SYNC_EXCLUDES)).toBe(true);
     expect(shouldExclude('.git/config', DEFAULT_SYNC_EXCLUDES)).toBe(true);
+    expect(shouldExclude('.cursor/projects/state.json', DEFAULT_SYNC_EXCLUDES)).toBe(true);
+    expect(shouldExclude('.agentignore', DEFAULT_SYNC_EXCLUDES)).toBe(true);
     expect(shouldExclude('src/extension.ts', DEFAULT_SYNC_EXCLUDES)).toBe(false);
     expect(shouldExclude('release.vsix', ['*.vsix'])).toBe(true);
   });
 
-  it('parses gitignore comments and blank lines', () => {
-    expect(parseGitignoreContents('# comment\n\n/dist\n')).toEqual(['/dist']);
+  it('normalizes gitignore patterns', () => {
+    expect(parseGitignoreContents('# comment\n\n/dist/\n')).toEqual(['dist']);
+  });
+
+  it('builds tar exclude arguments', () => {
+    expect(buildTarExcludeArgs(['node_modules', '.git'])).toEqual([
+      '--exclude', 'node_modules',
+      '--exclude', '.git'
+    ]);
+  });
+
+  it('builds rsync exclude arguments', () => {
+    expect(buildRsyncExcludeArgs(['node_modules', '.git'])).toEqual([
+      '--exclude', 'node_modules',
+      '--exclude', '.git'
+    ]);
+  });
+});
+
+describe('rsync progress parsing', () => {
+  it('parses progress2 output', () => {
+    expect(parseRsyncProgressPercent('    123456789   45%  123.45MB/s    0:00:42 (xfr#100, to-chk=0/500)')).toBe(45);
+  });
+
+  it('parses classic progress output', () => {
+    expect(parseRsyncProgressPercent('        1234 100%    1.23MB/s    0:00:01 (xfr#1, to-chk=0/1)')).toBe(100);
+  });
+});
+
+describe('sync platform helpers', () => {
+  it('uses the correct null device per platform', () => {
+    expect(nullDevicePath()).toBe(process.platform === 'win32' ? 'NUL' : '/dev/null');
+  });
+
+  it('formats rsync local paths with forward slashes on Windows', () => {
+    expect(formatRsyncLocalPath('C:\\work\\repo', input => input, 'win32')).toBe('C:/work/repo/');
+  });
+
+  it('keeps unix paths unchanged aside from trailing slash', () => {
+    expect(formatRsyncLocalPath('/work/repo', input => input, 'linux')).toBe('/work/repo/');
   });
 });
 
@@ -48,5 +95,25 @@ describe('remoteWorkspacePath', () => {
       createdAt: 'now',
       updatedAt: 'now'
     }, 'RemoteForge')).toBe('/srv/apps/RemoteForge');
+  });
+});
+
+describe('sync progress formatting', () => {
+  it('calculates percentage and message', () => {
+    const progress = { current: 25, total: 100, file: 'src/extension.ts' };
+    expect(syncProgressPercent(progress)).toBe(25);
+    expect(syncProgressIncrement(progress)).toBe(1);
+    expect(formatSyncProgressMessage(progress)).toBe('25% — src/extension.ts');
+  });
+
+  it('includes file counts for non-percent progress totals', () => {
+    const progress = { current: 25, total: 200, file: 'src/extension.ts' };
+    expect(formatSyncProgressMessage(progress)).toBe('13% — src/extension.ts (25/200)');
+  });
+
+  it('handles empty workspaces', () => {
+    const progress = { current: 0, total: 0, file: 'No files to sync' };
+    expect(syncProgressPercent(progress)).toBe(0);
+    expect(formatSyncProgressMessage(progress)).toBe('0% — No files to sync');
   });
 });

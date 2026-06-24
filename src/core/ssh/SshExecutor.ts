@@ -83,7 +83,7 @@ async function withConnectedClient<T>(
   const connectTimeoutMs = options.connectTimeoutMs ?? defaultConnectTimeoutMs;
 
   try {
-    await connectClient(client, toConnectConfig(config), connectTimeoutMs);
+    await connectClient(client, buildConnectConfig(config), connectTimeoutMs);
     return await run(client);
   } finally {
     client.end();
@@ -116,7 +116,7 @@ function connectClient(client: Client, config: ConnectConfig, timeoutMs: number)
   });
 }
 
-function toConnectConfig(config: SshConnectConfig): ConnectConfig {
+export function buildConnectConfig(config: SshConnectConfig): ConnectConfig {
   const connectConfig: ConnectConfig = {
     host: config.host,
     port: config.port,

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { resolveRemoteWorkspacePath } from '../core/sync/WorkspaceSync';
+import { createNotificationProgressReporter } from '../core/sync/syncProgressReporting';
 import { ProfileManager } from '../core/profile/ProfileManager';
 import { getWorkspaceRoot, VpsWorkspaceService } from '../services/VpsWorkspaceService';
 
@@ -22,101 +23,105 @@ export async function enableVpsMode(
       profileId: profile.id,
       remoteRoot: resolveRemoteWorkspacePath(profile, workspaceRoot)
     })),
-    { placeHolder: 'Select the VPS profile to clone this workspace to' }
+    { placeHolder: 'Select the VPS profile to delegate this workspace to'
+    }
   );
 
   if (!selected) {
     return;
   }
 
-  const remoteRoot = await vscode.window.showInputBox({
-    value: selected.remoteRoot,
-    prompt: 'Remote directory on the VPS where this repo will be cloned',
-    placeHolder: selected.remoteRoot
-  });
+  await enableDelegateModeWithPrompt(workspaceService, selected.profileId, selected.remoteRoot);
+}
 
-  if (!remoteRoot?.trim()) {
-    return;
-  }
-
+export async function enableDelegateModeWithPrompt(
+  workspaceService: VpsWorkspaceService,
+  profileId: string,
+  remoteRoot: string
+): Promise<void> {
   const confirmed = await vscode.window.showWarningMessage(
-    `RemoteForge will upload the current workspace to ${remoteRoot.trim()} and run future commands there.`,
+    `RemoteForge will migrate this workspace to ${remoteRoot} and route terminals and commands to the VPS.`,
     { modal: true },
-    'Enable VPS Mode'
+    'Enable Delegate Mode'
   );
 
-  if (confirmed !== 'Enable VPS Mode') {
+  if (confirmed !== 'Enable Delegate Mode') {
     return;
   }
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: `RemoteForge: cloning workspace to ${selected.label}`,
-      cancellable: false
-    },
-    async () => {
-      try {
-        const state = await workspaceService.enable(selected.profileId, remoteRoot.trim());
-        await vscode.window.showInformationMessage(
-          `RemoteForge VPS mode enabled. Workspace synced to ${state.remoteRoot}.`
-        );
-      } catch (error) {
-        await vscode.window.showErrorMessage(messageFromError(error));
-      }
+  await runDelegateActivation(workspaceService, profileId, remoteRoot);
+}
+
+export async function runDelegateActivation(
+  workspaceService: VpsWorkspaceService,
+  profileId: string,
+  remoteRoot: string
+): Promise<void> {
+  await runWithSyncProgress(
+    'RemoteForge: migrating workspace to VPS',
+    async report => {
+      const state = await workspaceService.enableDelegateMode(profileId, remoteRoot.trim(), report);
+      await vscode.window.showInformationMessage(
+        `Delegate mode enabled. Workspace synced to ${state.remoteRoot}. Use the RemoteForge terminal for commands.`
+      );
     }
   );
 }
 
 export async function disableVpsMode(workspaceService: VpsWorkspaceService): Promise<void> {
   if (!workspaceService.isEnabled()) {
-    await vscode.window.showInformationMessage('RemoteForge VPS mode is not enabled for this workspace.');
+    await vscode.window.showInformationMessage('RemoteForge delegate mode is not enabled for this workspace.');
     return;
   }
 
-  await workspaceService.disable();
-  await vscode.window.showInformationMessage('RemoteForge VPS mode disabled for this workspace.');
+  await workspaceService.disableDelegateMode();
+  await vscode.window.showInformationMessage('RemoteForge delegate mode disabled for this workspace.');
 }
 
 export async function syncWorkspaceToVps(workspaceService: VpsWorkspaceService): Promise<void> {
   if (!workspaceService.isEnabled()) {
-    await vscode.window.showWarningMessage('Enable RemoteForge VPS mode before syncing.');
+    await vscode.window.showWarningMessage('Enable RemoteForge delegate mode before syncing.');
     return;
   }
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'RemoteForge: syncing workspace to VPS',
-      cancellable: false
-    },
-    async () => {
-      try {
-        const result = await workspaceService.syncToVps();
-        await vscode.window.showInformationMessage(`RemoteForge uploaded ${result.uploaded} files to the VPS.`);
-      } catch (error) {
-        await vscode.window.showErrorMessage(messageFromError(error));
-      }
+  await runWithSyncProgress(
+    'RemoteForge: syncing workspace to VPS',
+    async report => {
+      const result = await workspaceService.syncToVps(undefined, report);
+      await vscode.window.showInformationMessage(`RemoteForge uploaded ${result.uploaded} files to the VPS.`);
     }
   );
 }
 
 export async function syncWorkspaceFromVps(workspaceService: VpsWorkspaceService): Promise<void> {
   if (!workspaceService.isEnabled()) {
-    await vscode.window.showWarningMessage('Enable RemoteForge VPS mode before syncing.');
+    await vscode.window.showWarningMessage('Enable RemoteForge delegate mode before syncing.');
     return;
   }
 
+  await runWithSyncProgress(
+    'RemoteForge: syncing workspace from VPS',
+    async report => {
+      const result = await workspaceService.syncFromVps(undefined, report);
+      await vscode.window.showInformationMessage(`RemoteForge downloaded ${result.downloaded} files from the VPS.`);
+    }
+  );
+}
+
+async function runWithSyncProgress(
+  title: string,
+  operation: (report: ReturnType<typeof createNotificationProgressReporter>) => Promise<void>
+): Promise<void> {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'RemoteForge: syncing workspace from VPS',
+      title,
       cancellable: false
     },
-    async () => {
+    async progress => {
       try {
-        const result = await workspaceService.syncFromVps();
-        await vscode.window.showInformationMessage(`RemoteForge downloaded ${result.downloaded} files from the VPS.`);
+        progress.report({ message: '0% — Preparing workspace sync' });
+        await operation(createNotificationProgressReporter(progress));
       } catch (error) {
         await vscode.window.showErrorMessage(messageFromError(error));
       }
