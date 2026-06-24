@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.20
+
+- Fix migration appearing stuck at 0% by reporting progress during scanning and credential loading.
+- Skip rsync for password profiles without sshpass on macOS/Linux to avoid SSH password hangs.
+- Try rsync before scanning all workspace files and add an rsync idle timeout fallback.
+
 ## 0.0.19
 
 - Fix ESLint errors that caused the GitHub Actions VSIX build to fail.

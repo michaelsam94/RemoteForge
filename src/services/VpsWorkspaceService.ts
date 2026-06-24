@@ -92,9 +92,10 @@ export class VpsWorkspaceService {
   }
 
   async syncToVps(state = this.requireState(), onProgress?: SyncProgressHandler): Promise<SyncResult> {
+    onProgress?.({ current: 0, total: 100, file: 'Loading VPS credentials' });
     const config = await this.getConnectConfig(state.profileId);
     const result = await syncWorkspaceToVps(config, state.localRoot, state.remoteRoot, {
-      onProgress: onProgress ?? createStatusBarProgressReporter('Uploading to VPS')
+      onProgress
     });
 
     state.lastSyncedAt = new Date().toISOString();

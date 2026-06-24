@@ -14,11 +14,11 @@ export function createNotificationProgressReporter(
       : Math.round((syncProgress.current / Math.max(syncProgress.total, 1)) * 100);
 
     const increment = percent > lastPercent ? percent - lastPercent : 0;
-    lastPercent = percent;
+    lastPercent = Math.max(lastPercent, percent);
 
     progress.report({
       message: formatSyncProgressMessage(syncProgress),
-      ...(increment > 0 ? { increment } : {})
+      ...(increment > 0 ? { increment } : { increment: 0 })
     });
   };
 }

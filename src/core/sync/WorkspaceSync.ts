@@ -3,9 +3,9 @@ import * as path from 'path';
 import { SFTPWrapper } from 'ssh2';
 import { SshConnectConfig } from '../ssh/SshCredentials';
 import { withSshClient } from '../ssh/SshExecutor';
-import { collectWorkspaceFiles, loadGitignorePatterns } from './collectWorkspaceFiles';
+import { collectWorkspaceFilesAsync, loadGitignorePatterns } from './collectWorkspaceFiles';
 import { syncWorkspaceViaParallelSftp } from './parallelSftpSync';
-import { getRsyncCapabilities, syncWorkspaceViaRsync } from './rsyncSync';
+import { canRsyncWithCredentialsAsync, getRsyncCapabilities, syncWorkspaceViaRsync } from './rsyncSync';
 import { downloadFile, listRemoteFiles, remoteWorkspacePath, SyncProgress, SyncResult, uploadFile } from './sftpOperations';
 import { getTarCapabilities, syncWorkspaceViaTar } from './tarStreamSync';
 import { DEFAULT_SYNC_EXCLUDES, mergeExcludePatterns, shouldExclude } from './syncExcludes';
@@ -29,48 +29,61 @@ export async function syncWorkspaceToVps(
   remoteRoot: string,
   options: WorkspaceSyncOptions = {}
 ): Promise<SyncResult> {
+  reportPhaseProgress(options, 0, 'Preparing workspace sync');
+
   const excludePatterns = buildExcludePatterns(workspaceRoot);
-  const files = collectWorkspaceFiles(workspaceRoot, { excludePatterns });
-
-  if (files.length === 0) {
-    options.onProgress?.({ current: 100, total: 100, file: 'No files to sync' });
-    return { uploaded: 0, downloaded: 0, skipped: 0 };
-  }
-
   const rsyncCapabilities = await getRsyncCapabilities();
-  if (rsyncCapabilities.available) {
+  const rsyncAuthReady = await canRsyncWithCredentialsAsync(config);
+
+  if (rsyncCapabilities.available && rsyncAuthReady) {
     try {
       return await syncWorkspaceViaRsync(
         config,
         workspaceRoot,
         remoteRoot,
         excludePatterns,
-        files,
         options
       );
     } catch (error) {
-      options.onProgress?.({
-        current: 0,
-        total: 100,
-        file: `Rsync failed, falling back to archive upload (${messageFromError(error)})`
-      });
+      reportPhaseProgress(
+        options,
+        0,
+        `Rsync failed, falling back to archive upload (${messageFromError(error)})`
+      );
     }
   } else if (rsyncCapabilities.skipReason) {
-    options.onProgress?.({
-      current: 0,
-      total: 100,
-      file: rsyncCapabilities.skipReason
-    });
+    reportPhaseProgress(options, 0, rsyncCapabilities.skipReason);
+  } else if (rsyncCapabilities.available && !rsyncAuthReady) {
+    reportPhaseProgress(
+      options,
+      0,
+      'Password auth without sshpass — using archive upload instead.'
+    );
   }
+
+  reportPhaseProgress(options, 1, 'Scanning workspace files');
+  const files = await collectWorkspaceFilesAsync(workspaceRoot, {
+    excludePatterns,
+    onProgress: progress => {
+      reportPhaseProgress(
+        options,
+        1,
+        `Scanning workspace files (${progress.scannedFiles} found, ${progress.currentPath})`
+      );
+    }
+  });
+
+  if (files.length === 0) {
+    reportPhaseProgress(options, 100, 'No files to sync');
+    return { uploaded: 0, downloaded: 0, skipped: 0 };
+  }
+
+  reportPhaseProgress(options, 2, `Found ${files.length} files to sync`);
 
   const tarCapabilities = await getTarCapabilities();
   if (!tarCapabilities.available) {
     if (tarCapabilities.skipReason) {
-      options.onProgress?.({
-        current: 0,
-        total: files.length,
-        file: tarCapabilities.skipReason
-      });
+      reportPhaseProgress(options, 2, tarCapabilities.skipReason);
     }
 
     return syncWorkspaceViaParallelSftp(config, remoteRoot, files, options);
@@ -86,11 +99,11 @@ export async function syncWorkspaceToVps(
       options
     );
   } catch (error) {
-    options.onProgress?.({
-      current: 0,
-      total: files.length,
-      file: `Archive upload failed, falling back to parallel upload (${messageFromError(error)})`
-    });
+    reportPhaseProgress(
+      options,
+      0,
+      `Archive upload failed, falling back to parallel upload (${messageFromError(error)})`
+    );
     return syncWorkspaceViaParallelSftp(config, remoteRoot, files, options);
   }
 }
@@ -154,6 +167,14 @@ async function openSftp(
 
       void run(sftp).then(resolve).catch(reject);
     });
+  });
+}
+
+function reportPhaseProgress(options: WorkspaceSyncOptions, percent: number, message: string): void {
+  options.onProgress?.({
+    current: Math.max(0, Math.min(100, percent)),
+    total: 100,
+    file: message
   });
 }
 

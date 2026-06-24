@@ -6,12 +6,12 @@ import * as path from 'path';
 import { promisify } from 'util';
 import { SshConnectConfig } from '../ssh/SshCredentials';
 import { withSshClient } from '../ssh/SshExecutor';
-import { WorkspaceFileEntry } from './collectWorkspaceFiles';
 import { formatRsyncLocalPath, isCommandAvailable, isWindowsPlatform, nullDevicePath } from './syncPlatform';
 import { buildTarExcludeArgs } from './syncExcludes';
 import { SyncProgress, SyncResult } from './sftpOperations';
 
 const execFileAsync = promisify(execFile);
+const RSYNC_IDLE_TIMEOUT_MS = 120_000;
 
 export interface RsyncSyncOptions {
   onProgress?: (progress: SyncProgress) => void;
@@ -70,6 +70,22 @@ export async function getRsyncCapabilities(): Promise<RsyncCapabilities> {
   }
 }
 
+export async function canRsyncWithCredentialsAsync(config: SshConnectConfig): Promise<boolean> {
+  if (config.privateKey) {
+    return true;
+  }
+
+  if (config.password) {
+    if (isWindowsPlatform()) {
+      return true;
+    }
+
+    return isCommandAvailable('sshpass');
+  }
+
+  return false;
+}
+
 export function buildRsyncExcludeArgs(excludePatterns: string[]): string[] {
   return buildTarExcludeArgs(excludePatterns);
 }
@@ -93,7 +109,6 @@ export async function syncWorkspaceViaRsync(
   workspaceRoot: string,
   remoteRoot: string,
   excludePatterns: string[],
-  files: WorkspaceFileEntry[],
   options: RsyncSyncOptions = {}
 ): Promise<SyncResult> {
   const capabilities = await getRsyncCapabilities();
@@ -101,6 +116,11 @@ export async function syncWorkspaceViaRsync(
     throw new Error('rsync is not installed or not available on PATH');
   }
 
+  if (!(await canRsyncWithCredentialsAsync(config))) {
+    throw new Error('rsync requires sshpass on macOS/Linux when using password authentication');
+  }
+
+  reportProgress(options, 1, 'Connecting to VPS');
   await ensureRemoteDirectory(config, remoteRoot);
 
   const auth = await prepareRsyncAuth(config);
@@ -108,12 +128,14 @@ export async function syncWorkspaceViaRsync(
   const destination = `${config.username}@${config.host}:${remoteRoot.replace(/\/+$/, '')}/`;
 
   try {
-    reportProgress(options, 0, `Syncing ${files.length} files with rsync`);
-    await runRsync(auth, capabilities, excludePatterns, source, destination, percent => {
+    reportProgress(options, 2, 'Starting rsync migration');
+    let transferredFiles = 0;
+    await runRsync(auth, capabilities, excludePatterns, source, destination, (percent, transferred) => {
+      transferredFiles = transferred;
       reportProgress(options, percent, `Syncing with rsync (${percent}%)`);
     });
-    reportProgress(options, 100, `Migration complete (${files.length} files)`);
-    return { uploaded: files.length, downloaded: 0, skipped: 0 };
+    reportProgress(options, 100, `Migration complete (${transferredFiles || 'all'} files)`);
+    return { uploaded: transferredFiles, downloaded: 0, skipped: 0 };
   } finally {
     await auth.cleanup();
   }
@@ -205,7 +227,7 @@ async function runRsync(
   excludePatterns: string[],
   source: string,
   destination: string,
-  onPercent: (percent: number) => void
+  onProgress: (percent: number, transferredFiles: number) => void
 ): Promise<void> {
   const rsyncArgs = [
     '-az',
@@ -232,16 +254,35 @@ async function runRsync(
 
     let stderr = '';
     let lastPercent = 0;
+    let transferredFiles = 0;
+    let lastOutputAt = Date.now();
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastOutputAt >= RSYNC_IDLE_TIMEOUT_MS) {
+        child.kill();
+        reject(new Error('rsync produced no output for 2 minutes'));
+      }
+    }, 10_000);
+
+    const finish = (callback: () => void) => {
+      clearInterval(watchdog);
+      callback();
+    };
 
     const handleOutput = (chunk: Buffer | string) => {
       const text = String(chunk);
       stderr += text;
+      lastOutputAt = Date.now();
 
       for (const line of text.split(/\r?\n/)) {
+        const xfrMatch = line.match(/xfr#(\d+)/);
+        if (xfrMatch) {
+          transferredFiles = Number.parseInt(xfrMatch[1], 10);
+        }
+
         const percent = parseRsyncProgressPercent(line);
         if (percent !== undefined && percent >= lastPercent) {
           lastPercent = percent;
-          onPercent(percent);
+          onProgress(percent, transferredFiles);
         }
       }
     };
@@ -249,15 +290,17 @@ async function runRsync(
     child.stdout.on('data', handleOutput);
     child.stderr.on('data', handleOutput);
 
-    child.on('error', reject);
+    child.on('error', error => finish(() => reject(error)));
     child.on('close', code => {
-      if (code === 0) {
-        onPercent(100);
-        resolve();
-        return;
-      }
+      finish(() => {
+        if (code === 0) {
+          onProgress(100, transferredFiles);
+          resolve();
+          return;
+        }
 
-      reject(new Error(trimRsyncError(stderr) || `rsync exited with code ${code ?? 'unknown'}`));
+        reject(new Error(trimRsyncError(stderr) || `rsync exited with code ${code ?? 'unknown'}`));
+      });
     });
   });
 }

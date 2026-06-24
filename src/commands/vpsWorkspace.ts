@@ -120,7 +120,6 @@ async function runWithSyncProgress(
     },
     async progress => {
       try {
-        progress.report({ message: '0% — Preparing workspace sync' });
         await operation(createNotificationProgressReporter(progress));
       } catch (error) {
         await vscode.window.showErrorMessage(messageFromError(error));
