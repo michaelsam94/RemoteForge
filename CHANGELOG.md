@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.24
+
+- Fix delegate mode migration stuck at 2% during remote workspace check by replacing slow SFTP directory walks with fast SSH `find`.
+- Prefer rsync dry-run for skip detection when rsync is available, falling back to SSH file listing.
+- Skip excluded directories during remote listing and time out remote checks instead of hanging indefinitely.
+
 ## 0.0.23
 
 - Add status bar delegate mode menu with enable, disable, sync, and terminal actions.

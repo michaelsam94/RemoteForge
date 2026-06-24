@@ -104,6 +104,120 @@ export function parseRsyncProgressPercent(line: string): number | undefined {
   return undefined;
 }
 
+export interface RsyncSyncAssessment {
+  needsSync: boolean;
+  changedFileCount: number;
+  message: string;
+}
+
+export async function assessRsyncSyncNeeded(
+  config: SshConnectConfig,
+  workspaceRoot: string,
+  remoteRoot: string,
+  excludePatterns: string[]
+): Promise<RsyncSyncAssessment> {
+  const capabilities = await getRsyncCapabilities();
+  if (!capabilities.available || !(await canRsyncWithCredentialsAsync(config))) {
+    throw new Error('Rsync is not available for workspace assessment');
+  }
+
+  const auth = await prepareRsyncAuth(config);
+  const source = formatRsyncLocalPath(workspaceRoot, input => path.resolve(input));
+  const destination = `${config.username}@${config.host}:${remoteRoot.replace(/\/+$/, '')}/`;
+
+  try {
+    const output = await runRsyncDryRun(auth, excludePatterns, source, destination);
+    const changedFileCount = countRsyncDryRunChanges(output);
+    return {
+      needsSync: changedFileCount > 0,
+      changedFileCount,
+      message: changedFileCount === 0
+        ? 'Workspace already on VPS (rsync dry-run found no changes)'
+        : `${changedFileCount} files would sync`
+    };
+  } finally {
+    await auth.cleanup();
+  }
+}
+
+export function countRsyncDryRunChanges(output: string): number {
+  let changedFiles = 0;
+
+  for (const line of output.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || isRsyncDryRunSummaryLine(trimmed)) {
+      continue;
+    }
+
+    changedFiles += 1;
+  }
+
+  return changedFiles;
+}
+
+function isRsyncDryRunSummaryLine(line: string): boolean {
+  return line.startsWith('sending incremental file list')
+    || line.startsWith('sent ')
+    || line.startsWith('total size is ')
+    || line.startsWith('created directory ')
+    || line.startsWith('receiving incremental file list')
+    || /^\d/.test(line)
+    || line.includes('%');
+}
+
+async function runRsyncDryRun(
+  auth: RsyncAuthSetup,
+  excludePatterns: string[],
+  source: string,
+  destination: string
+): Promise<string> {
+  const rsyncArgs = [
+    '-azn',
+    '--delete',
+    ...buildRsyncExcludeArgs(excludePatterns),
+    '-e',
+    auth.sshCommand,
+    source,
+    destination
+  ];
+
+  const args = auth.command === 'rsync'
+    ? rsyncArgs
+    : [...auth.prefixArgs, 'rsync', ...rsyncArgs];
+
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(auth.command, args, {
+      env: auth.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: isWindowsPlatform() && auth.command !== 'rsync'
+    });
+
+    let output = '';
+    let stderr = '';
+
+    const handleOutput = (chunk: Buffer | string): void => {
+      output += String(chunk);
+    };
+
+    child.stdout.on('data', handleOutput);
+    child.stderr.on('data', chunk => {
+      const text = String(chunk);
+      stderr += text;
+      output += text;
+    });
+
+    child.on('error', reject);
+    child.on('close', code => {
+      if (code === 0 || code === 23 || code === 24) {
+        resolve(output);
+        return;
+      }
+
+      reject(new Error(trimRsyncError(stderr) || `rsync dry-run exited with code ${code ?? 'unknown'}`));
+    });
+  });
+}
+
 export async function syncWorkspaceViaRsync(
   config: SshConnectConfig,
   workspaceRoot: string,

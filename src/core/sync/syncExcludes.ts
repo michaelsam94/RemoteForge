@@ -113,3 +113,24 @@ export function buildTarExcludeArgs(excludePatterns: string[]): string[] {
   }
   return args;
 }
+
+export function buildFindExcludeClauses(excludePatterns: string[]): string[] {
+  const clauses: string[] = [];
+
+  for (const pattern of excludePatterns) {
+    const normalized = normalizeGitignorePattern(pattern);
+    if (!normalized) {
+      continue;
+    }
+
+    if (normalized.includes('*')) {
+      clauses.push('!', '-name', normalized);
+      continue;
+    }
+
+    clauses.push('!', '-path', `./${normalized}`);
+    clauses.push('!', '-path', `./${normalized}/*`);
+  }
+
+  return clauses;
+}

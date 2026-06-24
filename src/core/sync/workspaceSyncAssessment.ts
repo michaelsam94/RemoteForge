@@ -1,8 +1,8 @@
-import { SFTPWrapper } from 'ssh2';
 import { SshConnectConfig } from '../ssh/SshCredentials';
-import { withSshClient } from '../ssh/SshExecutor';
 import { collectWorkspaceFilesAsync, WorkspaceFileEntry } from './collectWorkspaceFiles';
-import { listRemoteFileManifest } from './sftpOperations';
+import { listRemoteFileManifestViaExec } from './sftpOperations';
+
+const REMOTE_CHECK_TIMEOUT_MS = 90_000;
 
 export interface FileManifestEntry {
   relativePath: string;
@@ -26,19 +26,36 @@ export async function assessWorkspaceSyncNeeded(
   onProgress?: (message: string) => void
 ): Promise<WorkspaceSyncAssessment> {
   onProgress?.('Scanning local workspace');
-  const localFiles = await collectWorkspaceFilesAsync(workspaceRoot, { excludePatterns });
+  const localFiles = await collectWorkspaceFilesAsync(workspaceRoot, {
+    excludePatterns,
+    onProgress: progress => {
+      onProgress?.(`Scanning local workspace (${progress.scannedFiles} files)`);
+    }
+  });
   const localManifest = toManifest(localFiles);
 
   onProgress?.('Checking remote workspace on VPS');
   let remoteManifest: FileManifestEntry[] = [];
 
   try {
-    await withSshClient(config, { connectTimeoutMs: 30000 }, client => openSftp(client, async sftp => {
-      remoteManifest = toManifestFromRemote(await listRemoteFileManifest(sftp, remoteRoot, excludePatterns));
-    }));
+    const remoteFiles = await withTimeout(
+      listRemoteFileManifestViaExec(config, remoteRoot, excludePatterns, { connectTimeoutMs: 30000 }),
+      REMOTE_CHECK_TIMEOUT_MS,
+      'Timed out while checking remote workspace on VPS'
+    );
+    remoteManifest = toManifestFromRemote(remoteFiles);
+    onProgress?.(`Checked remote workspace (${remoteManifest.length} files)`);
   } catch (error) {
     if (isMissingRemoteRoot(error)) {
       return buildNeedsSyncAssessment(localManifest, [], 'Remote workspace not found on VPS');
+    }
+
+    if (isRemoteCheckTimeout(error)) {
+      return buildNeedsSyncAssessment(
+        localManifest,
+        [],
+        'Remote workspace check timed out — syncing anyway'
+      );
     }
 
     throw error;
@@ -150,18 +167,23 @@ function isMissingRemoteRoot(error: unknown): boolean {
   return error.code === 'ENOENT' || error.code === 2;
 }
 
-async function openSftp(
-  client: { sftp: (callback: (error: Error | undefined, sftp: SFTPWrapper) => void) => void },
-  run: (sftp: SFTPWrapper) => Promise<void>
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    client.sftp((error, sftp) => {
-      if (error) {
-        reject(error);
-        return;
-      }
+function isRemoteCheckTimeout(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Timed out while checking remote workspace');
+}
 
-      void run(sftp).then(resolve).catch(reject);
-    });
-  });
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }

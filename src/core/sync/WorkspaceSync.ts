@@ -5,7 +5,7 @@ import { SshConnectConfig } from '../ssh/SshCredentials';
 import { withSshClient } from '../ssh/SshExecutor';
 import { collectWorkspaceFilesAsync, loadGitignorePatterns } from './collectWorkspaceFiles';
 import { syncWorkspaceViaParallelSftp } from './parallelSftpSync';
-import { canRsyncWithCredentialsAsync, getRsyncCapabilities, syncWorkspaceViaRsync } from './rsyncSync';
+import { canRsyncWithCredentialsAsync, getRsyncCapabilities, syncWorkspaceViaRsync, assessRsyncSyncNeeded } from './rsyncSync';
 import { downloadFile, listRemoteFiles, remoteWorkspacePath, SyncProgress, SyncResult, uploadFile } from './sftpOperations';
 import { getTarCapabilities, syncWorkspaceViaTar } from './tarStreamSync';
 import { DEFAULT_SYNC_EXCLUDES, mergeExcludePatterns, shouldExclude } from './syncExcludes';
@@ -37,24 +37,69 @@ export async function syncWorkspaceToVps(
 
   if (!options.forceSync) {
     reportPhaseProgress(options, 1, 'Checking if workspace is already on VPS');
-    const assessment = await assessWorkspaceSyncNeeded(
-      config,
-      workspaceRoot,
-      remoteRoot,
-      excludePatterns,
-      message => reportPhaseProgress(options, 2, message)
-    );
+    const rsyncCapabilities = await getRsyncCapabilities();
+    const rsyncAuthReady = await canRsyncWithCredentialsAsync(config);
 
-    if (!assessment.needsSync) {
-      reportPhaseProgress(options, 100, assessment.message);
-      return {
-        uploaded: 0,
-        downloaded: 0,
-        skipped: assessment.localFileCount
-      };
+    if (rsyncCapabilities.available && rsyncAuthReady) {
+      try {
+        reportPhaseProgress(options, 2, 'Comparing workspace with VPS (rsync dry-run)');
+        const rsyncAssessment = await assessRsyncSyncNeeded(config, workspaceRoot, remoteRoot, excludePatterns);
+        if (!rsyncAssessment.needsSync) {
+          reportPhaseProgress(options, 100, rsyncAssessment.message);
+          const localFiles = await collectWorkspaceFilesAsync(workspaceRoot, { excludePatterns });
+          return {
+            uploaded: 0,
+            downloaded: 0,
+            skipped: localFiles.length
+          };
+        }
+
+        reportPhaseProgress(options, 3, `Sync needed (${rsyncAssessment.message})`);
+      } catch (error) {
+        reportPhaseProgress(
+          options,
+          2,
+          `Rsync check unavailable (${messageFromError(error)}), comparing file lists`
+        );
+        const assessment = await assessWorkspaceSyncNeeded(
+          config,
+          workspaceRoot,
+          remoteRoot,
+          excludePatterns,
+          message => reportPhaseProgress(options, 2, message)
+        );
+
+        if (!assessment.needsSync) {
+          reportPhaseProgress(options, 100, assessment.message);
+          return {
+            uploaded: 0,
+            downloaded: 0,
+            skipped: assessment.localFileCount
+          };
+        }
+
+        reportPhaseProgress(options, 3, `Sync needed (${assessment.message})`);
+      }
+    } else {
+      const assessment = await assessWorkspaceSyncNeeded(
+        config,
+        workspaceRoot,
+        remoteRoot,
+        excludePatterns,
+        message => reportPhaseProgress(options, 2, message)
+      );
+
+      if (!assessment.needsSync) {
+        reportPhaseProgress(options, 100, assessment.message);
+        return {
+          uploaded: 0,
+          downloaded: 0,
+          skipped: assessment.localFileCount
+        };
+      }
+
+      reportPhaseProgress(options, 3, `Sync needed (${assessment.message})`);
     }
-
-    reportPhaseProgress(options, 3, `Sync needed (${assessment.message})`);
   }
 
   const rsyncCapabilities = await getRsyncCapabilities();

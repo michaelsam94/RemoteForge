@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { formatRsyncLocalPath, nullDevicePath } from '../../core/sync/syncPlatform';
-import { buildRsyncExcludeArgs, parseRsyncProgressPercent } from '../../core/sync/rsyncSync';
-import { DEFAULT_SYNC_EXCLUDES, buildTarExcludeArgs, parseGitignoreContents, shouldExclude } from '../../core/sync/syncExcludes';
+import { DEFAULT_SYNC_EXCLUDES, buildFindExcludeClauses, buildTarExcludeArgs, parseGitignoreContents, shouldExclude } from '../../core/sync/syncExcludes';
+import { buildRsyncExcludeArgs, countRsyncDryRunChanges, parseRsyncProgressPercent } from '../../core/sync/rsyncSync';
 import { collectWorkspaceFiles } from '../../core/sync/collectWorkspaceFiles';
 import {
   formatSyncProgressMessage,
@@ -33,6 +33,16 @@ describe('syncExcludes', () => {
     ]);
   });
 
+  it('builds find exclude clauses for remote listing', () => {
+    expect(buildFindExcludeClauses(['node_modules', '.git', '*.vsix'])).toEqual([
+      '!', '-path', './node_modules',
+      '!', '-path', './node_modules/*',
+      '!', '-path', './.git',
+      '!', '-path', './.git/*',
+      '!', '-name', '*.vsix'
+    ]);
+  });
+
   it('builds rsync exclude arguments', () => {
     expect(buildRsyncExcludeArgs(['node_modules', '.git'])).toEqual([
       '--exclude', 'node_modules',
@@ -48,6 +58,29 @@ describe('rsync progress parsing', () => {
 
   it('parses classic progress output', () => {
     expect(parseRsyncProgressPercent('        1234 100%    1.23MB/s    0:00:01 (xfr#1, to-chk=0/1)')).toBe(100);
+  });
+
+  it('counts changed files from dry-run output', () => {
+    const output = [
+      'sending incremental file list',
+      'src/extension.ts',
+      '',
+      'sent 123 bytes  received 12 bytes',
+      'total size is 999'
+    ].join('\n');
+
+    expect(countRsyncDryRunChanges(output)).toBe(1);
+  });
+
+  it('returns zero when dry-run finds no changes', () => {
+    const output = [
+      'sending incremental file list',
+      '',
+      'sent 123 bytes  received 12 bytes',
+      'total size is 999'
+    ].join('\n');
+
+    expect(countRsyncDryRunChanges(output)).toBe(0);
   });
 });
 

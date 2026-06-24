@@ -1,6 +1,8 @@
 import { SFTPWrapper } from 'ssh2';
 import { VpsProfile } from '../profile/ProfileTypes';
-import { shouldExclude } from './syncExcludes';
+import { SshConnectConfig } from '../ssh/SshCredentials';
+import { execRemoteCommand, SshExecutorOptions } from '../ssh/SshExecutor';
+import { buildFindExcludeClauses, isExcludedDirectory, shouldExclude } from './syncExcludes';
 
 export interface SyncProgress {
   current: number;
@@ -128,6 +130,30 @@ export async function listRemoteFileManifest(
   return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
+export async function listRemoteFileManifestViaExec(
+  config: SshConnectConfig,
+  remoteRoot: string,
+  excludePatterns: string[],
+  options: SshExecutorOptions = {}
+): Promise<RemoteFileEntry[]> {
+  const excludeClauses = buildFindExcludeClauses(excludePatterns);
+  const command = ['find', '.', '-type', 'f', ...excludeClauses, '-printf', '%P\\t%s\\n'].join(' ');
+  const result = await execRemoteCommand(config, command, remoteRoot, {
+    connectTimeoutMs: options.connectTimeoutMs ?? 30000
+  });
+
+  if (result.exitCode !== 0) {
+    const detail = result.stderr.trim() || result.stdout.trim();
+    if (isMissingRemoteDirectoryError(result, detail)) {
+      throw Object.assign(new Error('Remote workspace not found on VPS'), { code: 'ENOENT' });
+    }
+
+    throw new Error(detail || `Remote file listing failed with exit code ${result.exitCode ?? 'unknown'}`);
+  }
+
+  return parseFindManifestOutput(remoteRoot, result.stdout);
+}
+
 export async function listRemoteFiles(
   sftp: SFTPWrapper,
   remoteRoot: string,
@@ -157,12 +183,16 @@ async function walkRemoteDirectory(
     const remotePath = `${currentDirectory}/${entry.filename}`.replace(/\/+/g, '/');
     const relativePath = remotePath.slice(remoteRoot.length + 1);
 
-    if (relativePath && shouldExclude(relativePath, excludePatterns)) {
+    if (entry.attrs.isDirectory()) {
+      if (relativePath && isExcludedDirectory(relativePath, excludePatterns)) {
+        continue;
+      }
+
+      await walkRemoteDirectory(sftp, remoteRoot, remotePath, excludePatterns, files);
       continue;
     }
 
-    if (entry.attrs.isDirectory()) {
-      await walkRemoteDirectory(sftp, remoteRoot, remotePath, excludePatterns, files);
+    if (relativePath && shouldExclude(relativePath, excludePatterns)) {
       continue;
     }
 
@@ -203,4 +233,42 @@ function hasErrorCode(error: unknown, code: string): boolean {
     && typeof error === 'object'
     && 'code' in error
     && error.code === code;
+}
+
+function parseFindManifestOutput(remoteRoot: string, stdout: string): RemoteFileEntry[] {
+  const files: RemoteFileEntry[] = [];
+
+  for (const line of stdout.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const separator = trimmed.indexOf('\t');
+    if (separator <= 0) {
+      continue;
+    }
+
+    const relativePath = trimmed.slice(0, separator).replace(/^\.\//, '');
+    const size = Number.parseInt(trimmed.slice(separator + 1), 10);
+    if (!relativePath || Number.isNaN(size)) {
+      continue;
+    }
+
+    files.push({
+      relativePath,
+      remotePath: `${remoteRoot}/${relativePath}`.replace(/\/+/g, '/'),
+      size
+    });
+  }
+
+  return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
+function isMissingRemoteDirectoryError(result: { stderr: string; stdout: string }, detail: string): boolean {
+  if (/no such file or directory/i.test(detail)) {
+    return true;
+  }
+
+  return result.stderr.includes('ENOENT') || result.stdout.includes('ENOENT');
 }
