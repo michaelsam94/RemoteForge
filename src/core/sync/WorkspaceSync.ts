@@ -9,10 +9,12 @@ import { canRsyncWithCredentialsAsync, getRsyncCapabilities, syncWorkspaceViaRsy
 import { downloadFile, listRemoteFiles, remoteWorkspacePath, SyncProgress, SyncResult, uploadFile } from './sftpOperations';
 import { getTarCapabilities, syncWorkspaceViaTar } from './tarStreamSync';
 import { DEFAULT_SYNC_EXCLUDES, mergeExcludePatterns, shouldExclude } from './syncExcludes';
+import { assessWorkspaceSyncNeeded } from './workspaceSyncAssessment';
 import { VpsProfile } from '../profile/ProfileTypes';
 
 export interface WorkspaceSyncOptions {
   onProgress?: (progress: SyncProgress) => void;
+  forceSync?: boolean;
 }
 
 export function buildExcludePatterns(workspaceRoot: string): string[] {
@@ -32,6 +34,29 @@ export async function syncWorkspaceToVps(
   reportPhaseProgress(options, 0, 'Preparing workspace sync');
 
   const excludePatterns = buildExcludePatterns(workspaceRoot);
+
+  if (!options.forceSync) {
+    reportPhaseProgress(options, 1, 'Checking if workspace is already on VPS');
+    const assessment = await assessWorkspaceSyncNeeded(
+      config,
+      workspaceRoot,
+      remoteRoot,
+      excludePatterns,
+      message => reportPhaseProgress(options, 2, message)
+    );
+
+    if (!assessment.needsSync) {
+      reportPhaseProgress(options, 100, assessment.message);
+      return {
+        uploaded: 0,
+        downloaded: 0,
+        skipped: assessment.localFileCount
+      };
+    }
+
+    reportPhaseProgress(options, 3, `Sync needed (${assessment.message})`);
+  }
+
   const rsyncCapabilities = await getRsyncCapabilities();
   const rsyncAuthReady = await canRsyncWithCredentialsAsync(config);
 

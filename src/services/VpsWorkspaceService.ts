@@ -39,11 +39,11 @@ export class VpsWorkspaceService {
     profileId: string,
     remoteRoot?: string,
     onProgress?: SyncProgressHandler
-  ): Promise<VpsWorkspaceState> {
-    const state = await this.enable(profileId, remoteRoot, onProgress);
+  ): Promise<{ state: VpsWorkspaceState; sync: SyncResult }> {
+    const result = await this.enable(profileId, remoteRoot, onProgress);
     const connect = await this.profileManager.getConnectConfig(profileId);
-    await this.activateDelegateRuntime(state, connect);
-    return state;
+    await this.activateDelegateRuntime(result.state, connect);
+    return result;
   }
 
   private async activateDelegateRuntime(state: VpsWorkspaceState, connect: SshConnectConfig): Promise<void> {
@@ -64,7 +64,7 @@ export class VpsWorkspaceService {
     profileId: string,
     remoteRoot?: string,
     onProgress?: SyncProgressHandler
-  ): Promise<VpsWorkspaceState> {
+  ): Promise<{ state: VpsWorkspaceState; sync: SyncResult }> {
     const workspaceRoot = getWorkspaceRoot();
     const profiles = await this.profileManager.listProfiles();
     const profile = profiles.find(entry => entry.id === profileId);
@@ -81,10 +81,11 @@ export class VpsWorkspaceService {
       remoteRoot: resolvedRemoteRoot
     };
 
-    await this.syncToVps(state, onProgress);
+    const config = await this.getConnectConfig(profile.id);
+    const sync = await syncWorkspaceToVps(config, state.localRoot, state.remoteRoot, { onProgress });
     state.lastSyncedAt = new Date().toISOString();
     await this.saveState(state);
-    return state;
+    return { state, sync };
   }
 
   async disableDelegateMode(): Promise<void> {
@@ -126,7 +127,8 @@ export class VpsWorkspaceService {
     onProgress?.({ current: 0, total: 100, file: 'Loading VPS credentials' });
     const config = await this.getConnectConfig(state.profileId);
     const result = await syncWorkspaceToVps(config, state.localRoot, state.remoteRoot, {
-      onProgress
+      onProgress,
+      forceSync: true
     });
 
     state.lastSyncedAt = new Date().toISOString();

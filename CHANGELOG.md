@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.22
+
+- Skip workspace re-upload on delegate mode enable when all local files already exist on the VPS with matching sizes.
+- Manual "Sync to VPS" still forces a full sync check and upload when needed.
+
 ## 0.0.21
 
 - Redirect Cursor Agent shell commands to the VPS when delegate mode is enabled via Cursor preToolUse hooks and an SSH control socket.

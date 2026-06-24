@@ -60,9 +60,12 @@ export async function runDelegateActivation(
   await runWithSyncProgress(
     'RemoteForge: migrating workspace to VPS',
     async report => {
-      const state = await workspaceService.enableDelegateMode(profileId, remoteRoot.trim(), report);
+      const { state, sync } = await workspaceService.enableDelegateMode(profileId, remoteRoot.trim(), report);
+      const syncSummary = sync.uploaded === 0 && sync.skipped > 0
+        ? `Workspace already on VPS (${sync.skipped} files, no re-upload needed).`
+        : `Workspace synced to ${state.remoteRoot}.`;
       await vscode.window.showInformationMessage(
-        `Delegate mode enabled. Workspace synced to ${state.remoteRoot}. Use the RemoteForge terminal for commands.`
+        `Delegate mode enabled. ${syncSummary} Use the RemoteForge terminal for commands.`
       );
     }
   );

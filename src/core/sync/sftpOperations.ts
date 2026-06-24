@@ -115,9 +115,10 @@ export async function downloadFile(
 export interface RemoteFileEntry {
   relativePath: string;
   remotePath: string;
+  size: number;
 }
 
-export async function listRemoteFiles(
+export async function listRemoteFileManifest(
   sftp: SFTPWrapper,
   remoteRoot: string,
   excludePatterns: string[]
@@ -125,6 +126,18 @@ export async function listRemoteFiles(
   const files: RemoteFileEntry[] = [];
   await walkRemoteDirectory(sftp, remoteRoot, remoteRoot, excludePatterns, files);
   return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
+export async function listRemoteFiles(
+  sftp: SFTPWrapper,
+  remoteRoot: string,
+  excludePatterns: string[]
+): Promise<Array<{ relativePath: string; remotePath: string }>> {
+  const files = await listRemoteFileManifest(sftp, remoteRoot, excludePatterns);
+  return files.map(file => ({
+    relativePath: file.relativePath,
+    remotePath: file.remotePath
+  }));
 }
 
 async function walkRemoteDirectory(
@@ -154,7 +167,11 @@ async function walkRemoteDirectory(
     }
 
     if (entry.attrs.isFile()) {
-      files.push({ relativePath, remotePath });
+      files.push({
+        relativePath,
+        remotePath,
+        size: entry.attrs.size ?? 0
+      });
     }
   }
 }
@@ -162,6 +179,7 @@ async function walkRemoteDirectory(
 interface SftpDirEntry {
   filename: string;
   attrs: {
+    size?: number;
     isDirectory(): boolean;
     isFile(): boolean;
   };
