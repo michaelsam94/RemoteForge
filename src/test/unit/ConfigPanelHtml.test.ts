@@ -23,6 +23,8 @@ describe('renderConfigPanelHtml', () => {
     expect(html).toContain("type: 'requestProfiles'");
     expect(html).toContain("type: 'testSavedProfile'");
     expect(html).toContain("type: 'runSavedScript'");
+    expect(html).toContain("type: 'deleteProfile'");
+    expect(html).toContain('data-action="delete-profile"');
     expect(html).toContain('data-action="save"');
     expect(html).toContain('data-action="test"');
     expect(html).toContain('id="status"');

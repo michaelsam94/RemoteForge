@@ -158,6 +158,15 @@ export function renderConfigPanelHtml(nonce: string): string {
       padding: 4px 10px;
       font-size: 0.9rem;
     }
+    .profile-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    button.danger {
+      color: var(--vscode-errorForeground);
+      background: var(--vscode-inputValidation-errorBackground);
+    }
   </style>
 </head>
 <body>
@@ -324,7 +333,10 @@ export function renderConfigPanelHtml(nonce: string): string {
           <li class="profile-card">
             <header>
               <h3>\${escapeHtml(profile.name)}</h3>
-              <button class="secondary small" type="button" data-action="test-saved-profile" data-profile-id="\${escapeHtml(profile.id)}">Test Connection</button>
+              <div class="profile-actions">
+                <button class="secondary small" type="button" data-action="test-saved-profile" data-profile-id="\${escapeHtml(profile.id)}">Test Connection</button>
+                <button class="danger small" type="button" data-action="delete-profile" data-profile-id="\${escapeHtml(profile.id)}" data-profile-name="\${escapeHtml(profile.name)}">Delete</button>
+              </div>
             </header>
             <div class="profile-meta">
               <span>\${endpoint}</span>
@@ -355,6 +367,15 @@ export function renderConfigPanelHtml(nonce: string): string {
           type: 'runSavedScript',
           profileId: runButton.dataset.profileId,
           scriptId: runButton.dataset.scriptId
+        });
+        return;
+      }
+
+      const deleteButton = target.closest('[data-action="delete-profile"]');
+      if (deleteButton instanceof HTMLElement && deleteButton.dataset.profileId) {
+        vscode.postMessage({
+          type: 'deleteProfile',
+          profileId: deleteButton.dataset.profileId
         });
       }
     });
@@ -422,6 +443,7 @@ export function renderConfigPanelHtml(nonce: string): string {
       if (message && message.type === 'saveResult') setStatus(message.message, message.ok);
       if (message && message.type === 'testResult') setStatus(message.message, message.ok);
       if (message && message.type === 'runResult') setStatus(message.message, message.ok);
+      if (message && message.type === 'deleteResult') setStatus(message.message, message.ok);
     });
 
     vscode.postMessage({ type: 'requestProfiles' });

@@ -67,4 +67,26 @@ describe('ProfileManager', () => {
       scripts: []
     })).rejects.toThrow('Port must be between 1 and 65535');
   });
+
+  it('deletes profile metadata and stored secrets', async () => {
+    const config = new InMemoryConfigStore();
+    const secrets = new InMemorySecretStore();
+    const manager = new ProfileManager(config, secrets, () => 'profile-1', () => '2026-06-23T00:00:00.000Z');
+
+    await manager.createProfile({
+      name: 'Build VPS',
+      host: '203.0.113.10',
+      port: 22,
+      username: 'deploy',
+      authMethod: 'password',
+      password: 'super-secret',
+      scripts: []
+    });
+
+    const deleted = await manager.deleteProfile('profile-1');
+
+    expect(deleted.name).toBe('Build VPS');
+    expect(config.snapshot()).toEqual([]);
+    expect(await secrets.get('remoteforge.password.profile-1')).toBeUndefined();
+  });
 });

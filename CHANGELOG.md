@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.12
+
+- Add VPS workspace mode to clone the local repo to a VPS and work remotely.
+- Sync workspace files to the VPS over SFTP with gitignore-aware excludes.
+- Auto-upload saved files when VPS mode is enabled.
+- Add status bar indicator and sync commands for VPS workspace mode.
+- Allow deleting saved VPS profiles and their stored credentials from the configuration panel.
+
 ## 0.0.11
 
 - Show saved VPS profiles in the configuration panel with connection details and quick-run scripts.

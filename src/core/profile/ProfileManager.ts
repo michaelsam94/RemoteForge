@@ -1,4 +1,4 @@
-import { credentialsFromDraft, credentialsFromProfile } from '../ssh/SshCredentials';
+import { credentialsFromDraft, credentialsFromProfile, SshConnectConfig } from '../ssh/SshCredentials';
 import { execRemoteCommand, RemoteExecResult } from '../ssh/SshExecutor';
 import { testProfileConnection } from '../connection/SshConnectionTester';
 import { ConnectionTestResult } from '../connection/ConnectionTester';
@@ -12,6 +12,7 @@ export interface ConfigStore {
 export interface SecretStore {
   get(key: string): Promise<string | undefined>;
   set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
 }
 
 export class InMemoryConfigStore implements ConfigStore {
@@ -40,6 +41,11 @@ export class InMemorySecretStore implements SecretStore {
 
   set(key: string, value: string): Promise<void> {
     this.values.set(key, value);
+    return Promise.resolve();
+  }
+
+  delete(key: string): Promise<void> {
+    this.values.delete(key);
     return Promise.resolve();
   }
 }
@@ -123,6 +129,12 @@ export class ProfileManager {
     return execRemoteCommand(connect, command, workdir);
   }
 
+  async getConnectConfig(profileId: string): Promise<SshConnectConfig> {
+    const profile = await this.getProfileById(profileId);
+    const secrets = await this.readSecrets(profile.id, profile.authMethod);
+    return credentialsFromProfile(profile, secrets);
+  }
+
   async runSavedScript(profileId: string, scriptId: string): Promise<RemoteExecResult> {
     const profile = await this.getProfileById(profileId);
     const script = profile.scripts.find(entry => entry.id === scriptId);
@@ -131,6 +143,18 @@ export class ProfileManager {
     }
 
     return this.execOnProfile(profileId, script.command, script.workdir);
+  }
+
+  async deleteProfile(profileId: string): Promise<VpsProfile> {
+    const profiles = await this.config.getProfiles();
+    const profile = profiles.find(entry => entry.id === profileId);
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    await this.deleteSecrets(profileId);
+    await this.config.saveProfiles(profiles.filter(entry => entry.id !== profileId));
+    return profile;
   }
 
   private async getProfileById(profileId: string): Promise<VpsProfile> {
@@ -175,6 +199,14 @@ export class ProfileManager {
         await this.secrets.set(`remoteforge.privateKeyPassphrase.${profileId}`, draft.privateKeyPassphrase);
       }
     }
+  }
+
+  private async deleteSecrets(profileId: string): Promise<void> {
+    await Promise.all([
+      this.secrets.delete(`remoteforge.password.${profileId}`),
+      this.secrets.delete(`remoteforge.privateKeyContent.${profileId}`),
+      this.secrets.delete(`remoteforge.privateKeyPassphrase.${profileId}`)
+    ]);
   }
 }
 

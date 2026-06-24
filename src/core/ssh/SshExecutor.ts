@@ -66,6 +66,14 @@ export async function execRemoteCommand(
   }));
 }
 
+export async function withSshClient<T>(
+  config: SshConnectConfig,
+  options: SshExecutorOptions,
+  run: (client: Client) => Promise<T>
+): Promise<T> {
+  return withConnectedClient(config, options, run);
+}
+
 async function withConnectedClient<T>(
   config: SshConnectConfig,
   options: SshExecutorOptions,

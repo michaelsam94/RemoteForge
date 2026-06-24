@@ -5,12 +5,16 @@ import { SecretStoreAdapter } from '../../adapters/SecretStoreAdapter';
 import { testProfileConnection } from '../../core/connection/SshConnectionTester';
 import { ProfileManager } from '../../core/profile/ProfileManager';
 import { VpsProfile, VpsProfileDraft } from '../../core/profile/ProfileTypes';
+import { VpsWorkspaceService } from '../../services/VpsWorkspaceService';
 import { renderConfigPanelHtml } from './ConfigPanelHtml';
 
 let activePanel: vscode.WebviewPanel | undefined;
 let activeProfileManager: ProfileManager | undefined;
 
-export function openConfigPanel(context: vscode.ExtensionContext): void {
+export function openConfigPanel(
+  context: vscode.ExtensionContext,
+  workspaceService?: VpsWorkspaceService
+): void {
   if (activePanel && activeProfileManager) {
     activePanel.reveal(vscode.ViewColumn.One);
     void sendProfiles(activePanel, activeProfileManager);
@@ -43,7 +47,7 @@ export function openConfigPanel(context: vscode.ExtensionContext): void {
   });
 
   panel.webview.onDidReceiveMessage((message: unknown) => {
-    void handleConfigMessage(panel, profileManager, message);
+    void handleConfigMessage(panel, profileManager, message, workspaceService);
   });
 }
 
@@ -73,7 +77,8 @@ function toProfileSummary(profile: VpsProfile) {
 async function handleConfigMessage(
   panel: vscode.WebviewPanel,
   profileManager: ProfileManager,
-  message: unknown
+  message: unknown,
+  workspaceService?: VpsWorkspaceService
 ): Promise<void> {
   if (isMessage(message, 'requestProfiles')) {
     await sendProfiles(panel, profileManager);
@@ -137,6 +142,41 @@ async function handleConfigMessage(
       await panel.webview.postMessage({ type: 'runResult', ok: false, message: messageFromError(error) });
     }
   }
+
+  if (isSavedProfileMessage(message, 'deleteProfile')) {
+    const profiles = await profileManager.listProfiles();
+    const profile = profiles.find(entry => entry.id === message.profileId);
+    if (!profile) {
+      await panel.webview.postMessage({ type: 'deleteResult', ok: false, message: 'Profile not found.' });
+      return;
+    }
+
+    const confirmed = await vscode.window.showWarningMessage(
+      `Delete VPS profile "${profile.name}"? Stored credentials will be removed.`,
+      { modal: true },
+      'Delete Profile'
+    );
+
+    if (confirmed !== 'Delete Profile') {
+      return;
+    }
+
+    try {
+      await profileManager.deleteProfile(message.profileId);
+      if (workspaceService?.getState()?.profileId === message.profileId) {
+        await workspaceService.disable();
+      }
+      await sendProfiles(panel, profileManager);
+      await panel.webview.postMessage({
+        type: 'deleteResult',
+        ok: true,
+        message: `Deleted profile "${profile.name}".`
+      });
+      void vscode.window.showInformationMessage(`RemoteForge deleted profile "${profile.name}".`);
+    } catch (error) {
+      await panel.webview.postMessage({ type: 'deleteResult', ok: false, message: messageFromError(error) });
+    }
+  }
 }
 
 function isMessage(message: unknown, type: string): message is { type: string } {
@@ -158,8 +198,8 @@ function isProfileMessage(
 
 function isSavedProfileMessage(
   message: unknown,
-  type: 'testSavedProfile'
-): message is { type: 'testSavedProfile'; profileId: string } {
+  type: 'testSavedProfile' | 'deleteProfile'
+): message is { type: 'testSavedProfile' | 'deleteProfile'; profileId: string } {
   return isMessage(message, type)
     && 'profileId' in message
     && typeof message.profileId === 'string';
