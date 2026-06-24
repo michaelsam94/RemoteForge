@@ -1,5 +1,7 @@
 import { credentialsFromDraft, credentialsFromProfile } from '../ssh/SshCredentials';
 import { execRemoteCommand, RemoteExecResult } from '../ssh/SshExecutor';
+import { testProfileConnection } from '../connection/SshConnectionTester';
+import { ConnectionTestResult } from '../connection/ConnectionTester';
 import { VpsProfile, VpsProfileDraft } from './ProfileTypes';
 
 export interface ConfigStore {
@@ -97,12 +99,19 @@ export class ProfileManager {
     return execRemoteCommand(connect, command, workdir);
   }
 
+  async testSavedProfile(profileId: string): Promise<ConnectionTestResult> {
+    const draft = await this.getProfileDraft(profileId);
+    return testProfileConnection(draft);
+  }
+
+  async getProfileDraft(profileId: string): Promise<VpsProfileDraft> {
+    const profile = await this.getProfileById(profileId);
+    const secrets = await this.readSecrets(profile.id, profile.authMethod);
+    return profileToDraft(profile, secrets);
+  }
+
   async execOnProfile(profileId: string, command: string, cwd?: string): Promise<RemoteExecResult> {
-    const profiles = await this.config.getProfiles();
-    const profile = profiles.find(entry => entry.id === profileId);
-    if (!profile) {
-      throw new Error('Profile not found');
-    }
+    const profile = await this.getProfileById(profileId);
 
     if (profile.authMethod === 'sshCommand') {
       throw new Error('SSH command auth is not supported for delegated execution yet');
@@ -112,6 +121,26 @@ export class ProfileManager {
     const connect = credentialsFromProfile(profile, secrets);
     const workdir = cwd ?? profile.defaultWorkdir;
     return execRemoteCommand(connect, command, workdir);
+  }
+
+  async runSavedScript(profileId: string, scriptId: string): Promise<RemoteExecResult> {
+    const profile = await this.getProfileById(profileId);
+    const script = profile.scripts.find(entry => entry.id === scriptId);
+    if (!script) {
+      throw new Error('Script not found');
+    }
+
+    return this.execOnProfile(profileId, script.command, script.workdir);
+  }
+
+  private async getProfileById(profileId: string): Promise<VpsProfile> {
+    const profiles = await this.config.getProfiles();
+    const profile = profiles.find(entry => entry.id === profileId);
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    return profile;
   }
 
   private async readSecrets(
@@ -173,4 +202,26 @@ function validateProfileDraft(draft: VpsProfileDraft, existing: VpsProfile[]): v
   if (!Number.isInteger(draft.port) || draft.port < 1 || draft.port > 65535) {
     throw new Error('Port must be between 1 and 65535');
   }
+}
+
+function profileToDraft(
+  profile: VpsProfile,
+  secrets: { password?: string; privateKeyContent?: string; privateKeyPassphrase?: string }
+): VpsProfileDraft {
+  return {
+    name: profile.name,
+    host: profile.host,
+    port: profile.port,
+    username: profile.username,
+    authMethod: profile.authMethod,
+    scripts: profile.scripts,
+    ...(profile.keyPath ? { keyPath: profile.keyPath } : {}),
+    ...(profile.jumpHost ? { jumpHost: profile.jumpHost } : {}),
+    ...(profile.defaultWorkdir ? { defaultWorkdir: profile.defaultWorkdir } : {}),
+    ...(profile.color ? { color: profile.color } : {}),
+    ...(profile.tags ? { tags: profile.tags } : {}),
+    ...(secrets.password ? { password: secrets.password } : {}),
+    ...(secrets.privateKeyContent ? { privateKeyContent: secrets.privateKeyContent } : {}),
+    ...(secrets.privateKeyPassphrase ? { privateKeyPassphrase: secrets.privateKeyPassphrase } : {})
+  };
 }

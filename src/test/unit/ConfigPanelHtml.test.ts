@@ -6,6 +6,7 @@ describe('renderConfigPanelHtml', () => {
 
     expect(html).toContain('RemoteForge VPS Delegator');
     expect(html).toContain('Add VPS Profile');
+    expect(html).toContain('Saved Profiles');
     expect(html).toContain('Run Script on VPS');
     expect(html).toContain('name="host"');
     expect(html).toContain('name="username"');
@@ -19,6 +20,9 @@ describe('renderConfigPanelHtml', () => {
 
     expect(html).toContain("type: 'saveProfile'");
     expect(html).toContain("type: 'testConnection'");
+    expect(html).toContain("type: 'requestProfiles'");
+    expect(html).toContain("type: 'testSavedProfile'");
+    expect(html).toContain("type: 'runSavedScript'");
     expect(html).toContain('data-action="save"');
     expect(html).toContain('data-action="test"');
     expect(html).toContain('id="status"');

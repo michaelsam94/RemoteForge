@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.11
+
+- Show saved VPS profiles in the configuration panel with connection details and quick-run scripts.
+- Add per-profile Test Connection and Run actions for saved profiles using stored credentials.
+- Refresh the saved profile list when opening configuration or after saving a new profile.
+
 ## 0.0.10
 
 - Added SSH-backed connection testing that verifies authentication, not just TCP reachability.

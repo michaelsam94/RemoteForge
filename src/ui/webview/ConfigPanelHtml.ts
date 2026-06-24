@@ -91,6 +91,73 @@ export function renderConfigPanelHtml(nonce: string): string {
       padding: 10px 12px;
       background: var(--vscode-textBlockQuote-background);
     }
+    .saved-profiles {
+      margin-bottom: 24px;
+    }
+    .profile-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .profile-card {
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+    }
+    .profile-card header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-bottom: 8px;
+    }
+    .profile-card h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .profile-meta {
+      color: var(--vscode-descriptionForeground);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .profile-meta span + span::before {
+      content: ' · ';
+    }
+    .profile-scripts {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+    .profile-script {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--vscode-editor-background);
+      border: 1px solid var(--vscode-panel-border);
+    }
+    .profile-script code {
+      font-family: var(--vscode-editor-font-family);
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .empty-state {
+      color: var(--vscode-descriptionForeground);
+      margin: 0;
+      padding: 12px 0 0;
+    }
+    button.small {
+      padding: 4px 10px;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -101,6 +168,12 @@ export function renderConfigPanelHtml(nonce: string): string {
     <div class="notice" id="status">
       Fill in a VPS profile, then save it, test SSH authentication, or run a quick script on the VPS.
     </div>
+
+    <section class="saved-profiles" aria-labelledby="saved-profiles-heading">
+      <h2 id="saved-profiles-heading">Saved Profiles</h2>
+      <p class="empty-state" id="saved-profiles-empty">Loading saved profiles...</p>
+      <ul class="profile-list" id="saved-profiles-list" hidden></ul>
+    </section>
 
     <form>
       <fieldset>
@@ -200,6 +273,91 @@ export function renderConfigPanelHtml(nonce: string): string {
     const vscode = acquireVsCodeApi();
     const form = document.querySelector('form');
     const status = document.querySelector('#status');
+    const savedProfilesEmpty = document.querySelector('#saved-profiles-empty');
+    const savedProfilesList = document.querySelector('#saved-profiles-list');
+
+    const authMethodLabels = {
+      password: 'Password',
+      privateKey: 'Private key',
+      sshCommand: 'SSH command'
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderSavedProfiles(profiles) {
+      if (!profiles.length) {
+        savedProfilesEmpty.textContent = 'No saved profiles yet. Add one below.';
+        savedProfilesEmpty.hidden = false;
+        savedProfilesList.hidden = true;
+        savedProfilesList.innerHTML = '';
+        return;
+      }
+
+      savedProfilesEmpty.hidden = true;
+      savedProfilesList.hidden = false;
+      savedProfilesList.innerHTML = profiles.map((profile) => {
+        const endpoint = \`\${escapeHtml(profile.username)}@\${escapeHtml(profile.host)}:\${profile.port}\`;
+        const authLabel = authMethodLabels[profile.authMethod] || profile.authMethod;
+        const workdir = profile.defaultWorkdir
+          ? \`<span>Workdir: \${escapeHtml(profile.defaultWorkdir)}</span>\`
+          : '';
+        const scripts = Array.isArray(profile.scripts) ? profile.scripts : [];
+        const scriptItems = scripts.length
+          ? \`<ul class="profile-scripts">\${scripts.map((script) => \`
+              <li class="profile-script">
+                <div>
+                  <strong>\${escapeHtml(script.name)}</strong>
+                  <div><code>\${escapeHtml(script.command)}</code></div>
+                </div>
+                <button class="secondary small" type="button" data-action="run-saved-script" data-profile-id="\${escapeHtml(profile.id)}" data-script-id="\${escapeHtml(script.id)}">Run</button>
+              </li>
+            \`).join('')}</ul>\`
+          : '<p class="profile-meta">No quick-run scripts saved for this profile.</p>';
+
+        return \`
+          <li class="profile-card">
+            <header>
+              <h3>\${escapeHtml(profile.name)}</h3>
+              <button class="secondary small" type="button" data-action="test-saved-profile" data-profile-id="\${escapeHtml(profile.id)}">Test Connection</button>
+            </header>
+            <div class="profile-meta">
+              <span>\${endpoint}</span>
+              <span>\${escapeHtml(authLabel)}</span>
+              \${workdir}
+            </div>
+            \${scriptItems}
+          </li>
+        \`;
+      }).join('');
+    }
+
+    savedProfilesList.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const testButton = target.closest('[data-action="test-saved-profile"]');
+      if (testButton instanceof HTMLElement && testButton.dataset.profileId) {
+        vscode.postMessage({ type: 'testSavedProfile', profileId: testButton.dataset.profileId });
+        return;
+      }
+
+      const runButton = target.closest('[data-action="run-saved-script"]');
+      if (runButton instanceof HTMLElement && runButton.dataset.profileId && runButton.dataset.scriptId) {
+        vscode.postMessage({
+          type: 'runSavedScript',
+          profileId: runButton.dataset.profileId,
+          scriptId: runButton.dataset.scriptId
+        });
+      }
+    });
 
     function profileFromForm() {
       const data = new FormData(form);
@@ -260,10 +418,13 @@ export function renderConfigPanelHtml(nonce: string): string {
 
     window.addEventListener('message', (event) => {
       const message = event.data;
+      if (message && message.type === 'profilesLoaded') renderSavedProfiles(message.profiles || []);
       if (message && message.type === 'saveResult') setStatus(message.message, message.ok);
       if (message && message.type === 'testResult') setStatus(message.message, message.ok);
       if (message && message.type === 'runResult') setStatus(message.message, message.ok);
     });
+
+    vscode.postMessage({ type: 'requestProfiles' });
   </script>
 </body>
 </html>`;

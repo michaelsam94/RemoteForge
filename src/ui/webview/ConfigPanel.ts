@@ -4,14 +4,16 @@ import { ConfigStoreAdapter } from '../../adapters/ConfigStoreAdapter';
 import { SecretStoreAdapter } from '../../adapters/SecretStoreAdapter';
 import { testProfileConnection } from '../../core/connection/SshConnectionTester';
 import { ProfileManager } from '../../core/profile/ProfileManager';
-import { VpsProfileDraft } from '../../core/profile/ProfileTypes';
+import { VpsProfile, VpsProfileDraft } from '../../core/profile/ProfileTypes';
 import { renderConfigPanelHtml } from './ConfigPanelHtml';
 
 let activePanel: vscode.WebviewPanel | undefined;
+let activeProfileManager: ProfileManager | undefined;
 
 export function openConfigPanel(context: vscode.ExtensionContext): void {
-  if (activePanel) {
+  if (activePanel && activeProfileManager) {
     activePanel.reveal(vscode.ViewColumn.One);
+    void sendProfiles(activePanel, activeProfileManager);
     return;
   }
 
@@ -26,17 +28,19 @@ export function openConfigPanel(context: vscode.ExtensionContext): void {
   );
 
   activePanel = panel;
-  panel.webview.html = renderConfigPanelHtml(createNonce());
-  panel.onDidDispose(() => {
-    activePanel = undefined;
-  });
-
   const profileManager = new ProfileManager(
     new ConfigStoreAdapter(context.globalState),
     new SecretStoreAdapter(context.secrets),
     () => crypto.randomUUID(),
     () => new Date().toISOString()
   );
+  activeProfileManager = profileManager;
+
+  panel.webview.html = renderConfigPanelHtml(createNonce());
+  panel.onDidDispose(() => {
+    activePanel = undefined;
+    activeProfileManager = undefined;
+  });
 
   panel.webview.onDidReceiveMessage((message: unknown) => {
     void handleConfigMessage(panel, profileManager, message);
@@ -47,14 +51,39 @@ function createNonce(): string {
   return crypto.randomBytes(16).toString('hex');
 }
 
+async function sendProfiles(panel: vscode.WebviewPanel, profileManager: ProfileManager): Promise<void> {
+  const profiles = await profileManager.listProfiles();
+  await panel.webview.postMessage({ type: 'profilesLoaded', profiles: profiles.map(toProfileSummary) });
+}
+
+function toProfileSummary(profile: VpsProfile) {
+  return {
+    id: profile.id,
+    name: profile.name,
+    host: profile.host,
+    port: profile.port,
+    username: profile.username,
+    authMethod: profile.authMethod,
+    defaultWorkdir: profile.defaultWorkdir,
+    scripts: profile.scripts,
+    updatedAt: profile.updatedAt
+  };
+}
+
 async function handleConfigMessage(
   panel: vscode.WebviewPanel,
   profileManager: ProfileManager,
   message: unknown
 ): Promise<void> {
+  if (isMessage(message, 'requestProfiles')) {
+    await sendProfiles(panel, profileManager);
+    return;
+  }
+
   if (isProfileMessage(message, 'saveProfile')) {
     try {
       const profile = await profileManager.createProfile(message.profile);
+      await sendProfiles(panel, profileManager);
       await panel.webview.postMessage({
         type: 'saveResult',
         ok: true,
@@ -88,6 +117,30 @@ async function handleConfigMessage(
       await panel.webview.postMessage({ type: 'runResult', ok: false, message: messageFromError(error) });
     }
   }
+
+  if (isSavedProfileMessage(message, 'testSavedProfile')) {
+    const result = await profileManager.testSavedProfile(message.profileId);
+    await panel.webview.postMessage({ type: 'testResult', ok: result.ok, message: result.message });
+  }
+
+  if (isSavedScriptMessage(message, 'runSavedScript')) {
+    try {
+      const result = await profileManager.runSavedScript(message.profileId, message.scriptId);
+      const profile = (await profileManager.listProfiles()).find(entry => entry.id === message.profileId);
+      const script = profile?.scripts.find(entry => entry.id === message.scriptId);
+      await panel.webview.postMessage({
+        type: 'runResult',
+        ok: result.exitCode === 0,
+        message: formatRunResult(script?.command ?? 'script', result)
+      });
+    } catch (error) {
+      await panel.webview.postMessage({ type: 'runResult', ok: false, message: messageFromError(error) });
+    }
+  }
+}
+
+function isMessage(message: unknown, type: string): message is { type: string } {
+  return message !== null && typeof message === 'object' && 'type' in message && message.type === type;
 }
 
 function isProfileMessage(
@@ -101,6 +154,26 @@ function isProfileMessage(
     && 'profile' in message
     && message.profile !== null
     && typeof message.profile === 'object';
+}
+
+function isSavedProfileMessage(
+  message: unknown,
+  type: 'testSavedProfile'
+): message is { type: 'testSavedProfile'; profileId: string } {
+  return isMessage(message, type)
+    && 'profileId' in message
+    && typeof message.profileId === 'string';
+}
+
+function isSavedScriptMessage(
+  message: unknown,
+  type: 'runSavedScript'
+): message is { type: 'runSavedScript'; profileId: string; scriptId: string } {
+  return isMessage(message, type)
+    && 'profileId' in message
+    && typeof message.profileId === 'string'
+    && 'scriptId' in message
+    && typeof message.scriptId === 'string';
 }
 
 function messageFromError(error: unknown): string {

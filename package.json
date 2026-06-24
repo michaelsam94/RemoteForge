@@ -3,7 +3,7 @@
   "displayName": "RemoteForge VPS Delegator",
   "description": "Delegate local developer tasks to remote VPS targets from VS Code and Cursor.",
   "publisher": "MichaelSam94",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
